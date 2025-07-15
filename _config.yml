@@ -16,7 +16,7 @@ timezone: Africa/Nairobi
 
 title: Mulandi's Blog
 
-tagline: Cyber Security Enthusiast |  # it will display as the subtitle
+tagline: Cyber Security Enthusiast # it will display as the subtitle
 
 description: >- # used by seo meta and the atom feed
   Diving into cybersecurity
@@ -28,7 +28,7 @@ github:
   username: mulandii # change to your GitHub username
 
 twitter:
-  username: ace_xp # change to your Twitter username
+  username: ace_xp_ # change to your Twitter username
 
 social:
   # Change to your full name.
@@ -37,7 +37,7 @@ social:
   email: mulandibaraka39@gmail.com # change to your email address
   links:
     # The first element serves as the copyright owner's link
-    - https://twitter.com/ace # change to your Twitter homepage
+    - https://twitter.com/ace_xp_ # change to your Twitter homepage
     - https://github.com/mulandii # change to your GitHub homepage
     # Uncomment below to add more social links
     # - https://www.facebook.com/username
@@ -97,7 +97,7 @@ theme_mode: dark
 cdn:
 
 # the avatar on sidebar, support local or CORS resources
-avatar: /assets/images/First_blog/firstblog.jpg
+avatar: https://baraka-mulandi-portfolio-vibe.vercel.app/assets/hero-portrait-_Gz71J-v.jpg
 
 # The URL of the site-wide social preview image used in SEO `og:image` meta tag.
 # It can be overridden by a customized `page.image` in front matter.
