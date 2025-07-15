@@ -97,7 +97,7 @@ theme_mode: dark
 cdn:
 
 # the avatar on sidebar, support local or CORS resources
-avatar: https://baraka-mulandi-portfolio-vibe.vercel.app/assets/hero-portrait-_Gz71J-v.jpg
+avatar: https://avatars.githubusercontent.com/u/133756414?v=4
 
 # The URL of the site-wide social preview image used in SEO `og:image` meta tag.
 # It can be overridden by a customized `page.image` in front matter.
