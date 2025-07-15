@@ -14,28 +14,27 @@ timezone: Africa/Nairobi
 # jekyll-seo-tag settings › https://github.com/jekyll/jekyll-seo-tag/blob/master/docs/usage.md
 # ↓ --------------------------
 
-title: Hushkat's Blog
+title: Mulandi's Blog
 
-tagline: Cyber Security Enthusiast | CTF Player # it will display as the subtitle
+tagline: Cyber Security Enthusiast  # it will display as the subtitle
 
 description: >- # used by seo meta and the atom feed
-  My journey into Cyber Security through CTFs.
-
+Diving and swimming in Cybersecurity
 # Fill in the protocol & hostname for your site.
 # E.g. 'https://username.github.io', note that it does not end with a '/'.
 url: "https://mulandii.github.io"
 
 github:
-  username: hushkat # change to your GitHub username
+  username: mulandii # change to your GitHub username
 
 twitter:
-  username: dr0idbot # change to your Twitter username
+  username: ace_xp_ # change to your Twitter username
 
 social:
   # Change to your full name.
   # It will be displayed as the default author of the posts and the copyright owner in the Footer
-  name: Samuel Katana
-  email: samykat46@gmail.com # change to your email address
+  name: Baraka Mulandi
+  email: mulandibaraka39@gmail.com # change to your email address
   links:
     # The first element serves as the copyright owner's link
     - https://twitter.com/ace_xp_ # change to your Twitter homepage
