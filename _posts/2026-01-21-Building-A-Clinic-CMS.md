@@ -69,6 +69,6 @@ The interface is optimized for quick access to clinical information, minimizing 
 _Lab Technician Dashboard_
 Laboratory operations are handled through a dedicated Lab Technician Dashboard, designed to allow lab staff to work efficiently without exposing unnecessary patient information.<br> The lab tech: <br> 
 - views the reccomended lab tests of the patients
-- View pending lab tests
+- View pending lab tests.
 - Adds,Uploads and updates Lab results.
 
