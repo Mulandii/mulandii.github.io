@@ -54,7 +54,7 @@ Receptionists handle the operational front desk tasks, including: <br>
 
 This dashboard prioritizes speed and clarity, enabling efficient patient flow management.
 ### Doctor Dashboard
-![Desktop View](/assets/images/Second_blog/doctordash.pngdash.png){: width="972" height="589" }
+![Desktop View](/assets/images/Second_blog/doctordash.png){: width="972" height="589" }
 _Doctor Dashboard_
 Doctors interact primarily with:
 
@@ -65,7 +65,7 @@ Doctors interact primarily with:
 
 The interface is optimized for quick access to clinical information, minimizing navigation overhead during consultations
 ### Lab Yechnician Dashboard
-![Desktop View](/assets/images/Second_blog/labdash.pngdash.png){: width="972" height="589" }
+![Desktop View](/assets/images/Second_blog/labdash.png){: width="972" height="589" }
 _Lab Technician Dashboard_
 Laboratory operations are handled through a dedicated Lab Technician Dashboard, designed to allow lab staff to work efficiently without exposing unnecessary patient information.<br> The lab tech: <br> 
 - views the reccomended lab tests of the patients
