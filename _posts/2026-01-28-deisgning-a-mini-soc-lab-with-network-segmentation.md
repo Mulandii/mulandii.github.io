@@ -83,7 +83,7 @@ DHCP: Disabled
 IPv6: Disabled
 ```
 
-![Desktop View](/assets/images/Third_blog/Natconfiguration.png){: width="972" height="589" }
+![Desktop View](/assets/images/Third_blog/NATconfiguration.png){: width="972" height="589" }
 _NAT configuration in Virtualbox_
 
 #### Why this matters
