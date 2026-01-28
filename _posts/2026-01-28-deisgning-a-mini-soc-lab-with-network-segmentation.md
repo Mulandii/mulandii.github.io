@@ -10,6 +10,7 @@ image:
 categories: [ Networking, Homelab,Virtualbox]
 tags: [ Networking, SOC, NDR,EDR ]
 ---
+
 ## Introduction
 
 When I started building a home **Security Operations Center (SOC) lab**, I assumed the difficult part would be installing detection tools.
@@ -119,8 +120,6 @@ DHCP: Disabled
 ![Desktop View](/assets/images/Third_blog/Hostonlyconfiguration.png){: width="972" height="589" }
 _Host-Only Network configuration_
 
-
-
 #### Why this matters
 
 This network acts like a **private admin cable**:
@@ -203,12 +202,10 @@ Name: vboxnet0
 ```
 
 <div style="display: flex; gap: 10px;">
-  <img src="/assets/images/Third_blog/adapter1.png" style="width: 700%;" />
-   <img src="/assets/images/Third_blog/adapter2.png" style="width: 700%;" />
-    <img src="/assets/images/Third_blog/adapter3.png" style="width: 700%;" />
-
+  <img src="/assets/images/Third_blog/adapter1.png" alt="VirtualBox adapter 1 configured as NAT network" style="width: 700%;" />
+  <img src="/assets/images/Third_blog/adapter2.png" alt="VirtualBox adapter 2 configured as internal network" style="width: 700%;" />
+  <img src="/assets/images/Third_blog/adapter3.png" alt="VirtualBox adapter 3 configured as host-only network" style="width: 700%;" />
 </div>
-
 
 #### Why three adapters?
 
@@ -241,20 +238,13 @@ You should see **three Ethernet adapters**.
 ### Step 2.4: Assigning Static IP Addresses
 
 #### Adapter 1 — NAT Network
-1. Right-click **Ethernet** → **Properties**
-2. Select **Internet Protocol Version 4 (TCP/IPv4)**
-3. Click **Properties**
-4. ** I used the following IP address:**
+
 ```
 IP: 10.0.50.10
 Subnet: 255.255.255.0
 Gateway: 10.0.50.1
 DNS: 8.8.8.8
 ```
-
-Why only one gateway?
-
-* multiple gateways confuse Windows routing
 
 ---
 
@@ -267,8 +257,6 @@ Gateway: None
 DNS: None
 ```
 
-This network should never reach the internet.
-
 ---
 
 #### Adapter 3 — Host-Only Network
@@ -280,47 +268,38 @@ Gateway: None
 DNS: None
 ```
 
-Used only for RDP from the host.
-
 <div style="display: flex; gap: 10px; justify-content: space-around;">
   <figure style="width: 30%; text-align: center;">
-    <img src="/assets/images/Third_blog/ipassignethernet.png" style="width: 100%;" />
+    <img src="/assets/images/Third_blog/ipassignethernet.png" alt="Static IP configuration for Ethernet adapter" style="width: 100%;" />
     <figcaption>Ethernet Static ip Assignment</figcaption>
   </figure>
   <figure style="width: 30%; text-align: center;">
-    <img src="/assets/images/Third_blog/ipassignEthernet2.png" style="width: 100%;" />
+    <img src="/assets/images/Third_blog/ipassignEthernet2.png" alt="Static IP configuration for second Ethernet adapter" style="width: 100%;" />
     <figcaption>Ethernet2 Static ip Assignment</figcaption>
   </figure>
   <figure style="width: 30%; text-align: center;">
-    <img src="/assets/images/Third_blog/ipassignEthernet3.png" style="width: 100%;" />
+    <img src="/assets/images/Third_blog/ipassignEthernet3.png" alt="Static IP configuration for third Ethernet adapter" style="width: 100%;" />
     <figcaption>Ethernet2 Static ip Assignment</figcaption>
   </figure>
 </div>
 
 ---
-### Step 2.5: Verifying Connectivity
 
-In the Windows EDR open **Command Prompt**:
+### Step 2.5: Verifying Connectivity
 
 ```
 ipconfig
 ```
 
 ![Desktop View](/assets/images/Third_blog/ipconfigwinedr.png){: width="972" height="589" }
-_> > This shows the IP configuration of the Windows EDR_
-
-Test:
 
 ```
-ping 10.0.50.1   # Test NAT gateway  
-ping 10.0.60.1   # Host machine reachability  
-ping 8.8.8.8     # Check internet reachability  
+ping 10.0.50.1  
+ping 10.0.60.1  
+ping 8.8.8.8  
 ```
 
 ![Desktop View](/assets/images/Third_blog/ping.png){: width="972" height="589" }
-_Successful ping results_
-
-The successful ping results show Windows EDR networking is correct.
 
 ---
 
