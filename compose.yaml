@@ -1,0 +1,10 @@
+services:
+  blog:
+    build: .
+    container_name: mulandii-blog
+    ports:
+      - "4000:4000"
+      - "35729:35729"
+    volumes:
+      - .:/workspaces/mulandii.github.io
+    command: bundle exec jekyll serve --host 0.0.0.0 --port 4000 --livereload

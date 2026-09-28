@@ -2,7 +2,7 @@
 title: Designing a Simple SOC Network My First Home Lab Setup
 author: baraka
 date: 2026-01-28 14:59:33 +0300
-description: A detailed guide on designing a mini SOC lab with network segmentation for enhanced security and monitoring
+description: A detailed guide on designing a mini SOC lab with network segmentation for enhanced security and monitoring.
 image:
   path: /assets/images/Third_blog/vms.png
   lqip: data:image/webp;base64,UklGRpoAAABXRUJQVlA4WAoAAAAQAAAADwAABwAAQUxQSDIAAAARL0AmbZurmr57yyIiqE8oiG0bejIYEQTgqiDA9vqnsUSI6H+oAERp2HZ65qP/VIAWAFZQOCBCAAAA8AEAnQEqEAAIAAVAfCWkAALp8sF8rgRgAP7o9FDvMCkMde9PK7euH5M1m6VWoDXf2FkP3BqV0ZYbO6NA/VFIAAAA
@@ -15,7 +15,7 @@ tags: [ Networking, SOC, NDR,EDR ]
 
 When I started building a home **Security Operations Center (SOC) lab**, I assumed the difficult part would be installing detection tools.
 
-Instead, the biggest challenge was **networking**.
+Instead, the biggest challenge was **networking**..   edit
 
 This post documents how I built and configured the **network foundation** of a SOC lab using:
 
