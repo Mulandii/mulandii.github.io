@@ -1,7 +1,7 @@
 ---
 title: Designing a Simple SOC Network My First Home Lab Setup
 author: baraka
-date: 2026-01-28 14:59:33 +0300
+date: 2026-08-28 14:59:33 +0300
 description: A detailed guide on designing a mini SOC lab with network segmentation for enhanced security and monitoring.
 image:
   path: /assets/images/Third_blog/vms.png
