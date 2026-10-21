@@ -27,20 +27,23 @@ I did this in a fixed order, taking a snapshot before each risky step so I could
 ## Environment
 
 * **DC01:** Windows Server 2022 evaluation, 3 GB RAM, 2 CPUs, on the internal network `adlab-net`
-* **win11:** Windows 11 Pro, on the same network
+* **win11:** Windows 11 Pro, on the same network. The edition matters: Windows 11 Home cannot join a domain.
 * **fw01:** pfSense, the gateway at `10.0.10.1`
 * Snapshots: `phase1-dc01-fresh-install`, `phase1-dc01-before-ad`, `phase1-dc01-ad-installed`
+
+With all three VMs running, my 16 GB host reached about 92% memory use, so I reduced DC01 to 3 GB and the firewall to about 1.2 GB.
 
 ---
 
 ## Step 1: A fixed address
 
-A domain controller needs an address that never changes, because every other machine will be told where to find it. I set `10.0.10.10/24` with the pfSense gateway, and pointed DNS at pfSense for now, because DC01's own DNS does not exist until the domain is created.
+A domain controller needs an address that never changes, because every other machine will be told where to find it. I gave it `10.0.10.10/24` with the pfSense gateway, and pointed DNS at pfSense for now, because DC01's own DNS does not exist until the domain is created. I also renamed the server to `DC01` and restarted it before creating the domain, because renaming a domain controller afterwards is painful. The first `ipconfig` still showed the old random name until the restart.
+
+The PowerShell equivalent of the address settings is:
 
 ```powershell
 New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.0.10.10 -PrefixLength 24 -DefaultGateway 10.0.10.1
 Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.0.10.1
-Set-TimeZone -Id "E. Africa Standard Time"
 ```
 
 ![Desktop View](/assets/images/Thirteenth_blog/dc01-ipconfig.png){: width="1000" height="762" }
@@ -67,7 +70,7 @@ _The role installed with no restart needed_
 | `-DomainNetbiosName "LAB"` | The short name used in logins such as `LAB\Administrator`. |
 | `-InstallDns` | Installs DNS on the server. Active Directory finds everything through DNS. |
 
-The command asks for a Directory Services Restore Mode password, an emergency recovery login. I stored it in a password manager.
+The command asks for a Directory Services Restore Mode password, an emergency recovery login. Keep it somewhere safe, because you cannot recover the domain controller's directory without it.
 
 ![Desktop View](/assets/images/Thirteenth_blog/dc01-forest-created.png){: width="974" height="147" }
 _The confirmation prompt before the domain controller is created and the server restarts_

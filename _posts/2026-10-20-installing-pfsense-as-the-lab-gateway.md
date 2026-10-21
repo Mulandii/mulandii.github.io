@@ -70,6 +70,8 @@ _`vboxnet1` at 10.0.66.2/24 with DHCP disabled_
 
 I used Netgate's installer image, which downloads pfSense during the install. I chose **pfSense CE** (the free edition), ZFS with a single-disk stripe, and the 2.9.0 stable release.
 
+On the installer's LAN screen I replaced the default `192.168.1.1/24` with `10.0.10.1/24` and turned the DHCP server off, because the domain controller will be the DHCP server. Earlier, on the WAN screen, I changed the interface mode to STATIC by accident with a hotkey, and had to cycle it back to DHCP before continuing. The letters in red in the installer menus are hotkeys, so typing one can change a value.
+
 The first two attempts failed. The installer fetched the package catalogue and about 50 packages, then stopped with a timeout on a 29 MiB package download.
 
 > I read the log with `tail -40 /tmp/install-log.txt` from the installer shell instead of guessing. It ended with `pkg-static: Failed to fetch ... Timeout was reached`.

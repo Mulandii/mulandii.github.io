@@ -115,7 +115,7 @@ Servers and clients share one subnet. In production I would split them, but it a
 ## Safety controls
 
 * No bridged adapters, so nothing reaches the real network
-* IP forwarding stays off on the Arch host
+* The Arch host must not forward lab traffic to my real network. When I checked later, IP forwarding was **on**, because Docker is installed and enables it. I am treating that as an open item and will block forwarding on the lab interface and verify it, so this control is not in place yet
 * My existing VirtualBox networks are untouched: I created a new Host-Only adapter and a new internal network name
 * Windows Server evaluation media only, and Windows 11 installed without a product key
 * A snapshot before every major change and before every attack
