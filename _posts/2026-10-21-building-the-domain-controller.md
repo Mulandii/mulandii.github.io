@@ -49,6 +49,14 @@ Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.0.10.1
 ![Desktop View](/assets/images/Thirteenth_blog/dc01-ipconfig.png){: width="1000" height="762" }
 _Host name DC01, fixed address, and a working ping and DNS lookup through pfSense_
 
+### The "discoverable" prompt
+
+When I applied the network settings, Windows asked whether to let this PC be discoverable on the network. I answered **No**.
+
+The answer sets the network's firewall profile. Yes makes it Private, which allows network discovery and file sharing. No makes it Public, the stricter profile. I chose No because a domain controller has no use for discovery: it is found through DNS and Active Directory, not by browsing the network. Discovery also switches on name-lookup protocols that attackers abuse, such as LLMNR, NetBIOS and mDNS, and I plan to disable those with Group Policy in the hardening step. Opening them now would only mean closing them later.
+
+The profile is not permanent. Once the machine becomes a domain controller, Windows is supposed to reclassify the network as a domain network, and as the section on the network profile below shows, that did not always stick.
+
 ---
 
 ## Step 2: Installing AD DS and creating the domain
