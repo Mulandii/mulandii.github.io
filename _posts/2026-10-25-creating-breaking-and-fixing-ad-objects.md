@@ -280,11 +280,23 @@ There are three older 4722 events, all from 21 October. I have not read them, so
 
 ### No account lockout
 
+
 ```powershell
 Get-ADDefaultDomainPasswordPolicy | Select MinPasswordLength, ComplexityEnabled, LockoutThreshold, LockoutDuration
 ```
 
-`LockoutThreshold` is **0**. A threshold of zero means an account is never locked, however many wrong passwords are typed. The lockout duration shows 30 minutes, but it only matters when a threshold is set. This is the first real hardening finding in the lab: anyone who can reach the domain controller can guess passwords without limit. I will set a lockout threshold in the Group Policy step.
+The policy shows a minimum password length of 7, complexity enabled, and `LockoutThreshold` **0**. A threshold of zero means an account is never locked, however many wrong passwords are typed. The lockout duration shows 30 minutes, but it only matters when a threshold is set. This is the first real hardening finding in the lab: anyone who can reach the domain controller can guess passwords without limit. I will set a lockout threshold in the Group Policy step.
+
+---
+
+## Wrong passwords on the sign-in screen
+
+With a threshold of 0, I expected nothing to stop me. I typed a wrong password for `Lab\tuser` five times on `WS01`:
+
+![Desktop View](/assets/images/Fifteenth_blog/ws01-login-wrong-password-delay.png){: width="939" height="328" }
+_"Invalid credentials, delaying next attempt..." after repeated wrong passwords_
+
+The sign-in screen slowed me down. This is not an account lockout. The domain's lockout threshold is 0, and the delay comes from the Windows sign-in screen on the workstation, not from the domain controller. I have not timed how long it lasts. It protects only against someone typing at this keyboard. An attacker guessing passwords over the network never sees this screen, which is why the lockout threshold still has to be set on the domain. I have not yet read the failure events on the DC for these attempts.
 
 ---
 
@@ -339,7 +351,7 @@ _E. Africa Standard Time, and a resync that completes successfully_
 
 The resync completed successfully, and the source on WS01 returned `DC01.lab.internal`. So time flows from the internet to DC01 to WS01, the way a domain should do it.
 
-I also installed the VirtualBox Guest Additions on DC01, so I can paste long commands. On Arch the ISO comes from a separate package, `virtualbox-guest-iso`. The shared clipboard can work in one or both directions. A two-way clipboard is a path between my real machine and the lab, and the whole design is about keeping them apart, so Host to Guest is the safer setting.
+I also installed the VirtualBox Guest Additions on DC01, so I can paste long commands. On Arch the ISO comes from a separate package, `virtualbox-guest-iso`. The shared clipboard is set to bidirectional. A two-way clipboard is a path between my real machine and the lab, and the whole design is about keeping them apart. Host to Guest would be the safer setting. DC01 is the defender and holds nothing hostile, so I accept it for now, and I will switch it off on any machine that handles malware.
 
 ---
 
@@ -351,7 +363,7 @@ I also installed the VirtualBox Guest Additions on DC01, so I can paste long com
 
 ## Still to do
 
-* **Wrong passwords:** type a wrong password for `tuser` several times, and read events 4771 and 4625. With a lockout threshold of 0, the account should not lock, and I want to see that.
+* **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
 * **Delete and recreate `tuser`** cleanly, and check `whoami /groups` again to find out whether `Domain Users` appears.
 * **Check the audit policy** with `auditpol` to see whether failed Kerberos logins are recorded.
 * Find out why the clock drifted.
