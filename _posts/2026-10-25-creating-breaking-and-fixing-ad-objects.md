@@ -552,6 +552,37 @@ I then signed in on `WS01` as the restored `tuser`, and **the old password still
 
 ---
 
+## Cleaning up
+
+The test objects were throwaway, and the script I write next should start from a clean directory. I removed the user, the group and the OU:
+
+```powershell
+Remove-ADUser -Identity tuser -Confirm:$false
+Remove-ADGroup -Identity GG-Recover -Confirm:$false
+Set-ADOrganizationalUnit -Identity "OU=Lab_moved,DC=lab,DC=internal" -ProtectedFromAccidentalDeletion $false
+Remove-ADOrganizationalUnit -Identity "OU=Lab_moved,DC=lab,DC=internal" -Confirm:$false
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-cleanup-commands.png){: width="1001" height="154" }
+_The same two locks as before: the protection flag first, then the delete_
+
+The OU needed its protection removed again before it could be deleted, which is the first lock from earlier. I did not need `-Recursive` this time, because I had already removed what was inside it. With the Recycle Bin on, these deletions can be undone.
+
+Then I checked that the directory was back at its baseline:
+
+```powershell
+Get-ADOrganizationalUnit -Filter * | Select Name
+Get-ADUser -Filter * | Select Name, Enabled
+Get-ADGroup -Filter 'Name -like "GG-*"' | Select Name
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-directory-clean-after-exercise.png){: width="1039" height="413" }
+_Back to the baseline: only Domain Controllers, the three built-in users, and no test groups_
+
+It matches the starting screenshot: one OU (`Domain Controllers`), the users `Administrator`, `Guest` and `krbtgt`, and no `GG-` groups. This is the point I will snapshot as the starting state for the script.
+
+---
+
 ## Outcome
 
 * I created, edited, moved, deleted, disabled and enabled objects by hand, and read the Windows event each one left behind.
