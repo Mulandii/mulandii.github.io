@@ -319,12 +319,20 @@ I then read the workstation's own log and the older 4625 events on the domain co
 * Status `0xC000006D` and Sub Status `0xC000006A`, with the reason "Unknown user name or bad password"
 * Subject `WS01$`, source address `127.0.0.1`, logon process `User32`
 
+![Desktop View](/assets/images/Fifteenth_blog/ws01-failed-logons-4625.png){: width="944" height="336" }
+_The workstation's own log: six failed interactive logons for tuser, each with the wrong-password sub status_
+
 Sub Status `0xC000006A` is the wrong-password code. `0xC0000072` would be a disabled account. So the **workstation** recorded my wrong passwords, with the account name, while the **domain controller** recorded nothing. A defender who collects logs only from the domain controller would miss someone guessing passwords at a keyboard. The workstations need to send their logs too, which is what the agents in Phase 2 are for. The first five events are 5 seconds apart and the last is 11 seconds after the fifth. I did not work out why.
 
 **On DC01**, the 4625 list also holds two kinds of older entries:
 
+![Desktop View](/assets/images/Fifteenth_blog/dc01-failed-logons-4625.png){: width="899" height="335" }
+_DC01's 4625 events: one wrong password at the console, and five network logons from WS01's address with status 0xc0000133_
+
+
 * At 6:08:56 AM on 23 October, an interactive logon (type 2) failed on DC01 for `LAB\Administrator`, with the same sub status `0xC000006A`. That is a wrong password typed at the DC01 console. It has the same shape as the WS01 events, because both machines audit logon failures on themselves by default. Only the Kerberos failures on the domain controller are not recorded.
-* At 5:47:44 AM on 23 October and again at 11:00:43 PM on 25 October, there are two 4625 events with **no account name**, logon type `3` (network), logon process `Kerberos`, the status `0xC0000133` and the source address `10.0.10.100`, which is WS01. The reason text says only "An Error occured during Logon". I believe that status is the Kerberos time-difference error, meaning WS01's clock and the domain controller's clock were too far apart for the login, but I have not verified the code. If that is right, WS01's clock was off again at 11:00 PM on 25 October, after I had fixed the time on the 23rd, and the 5:47:44 AM event is the failed attempt that shares its timestamp with the 4768 I couldn't explain earlier.
+* Five 4625 events with **no account name**, logon type `3` (network), logon process `Kerberos`, status `0xC0000133` and the source address `10.0.10.100`, which is WS01. The reason text says only "An Error occured during Logon". They are dated 2:44:58 PM and twice at 3:29:42 PM on 21 October, 5:47:44 AM on 23 October and 11:00:43 PM on 25 October. I believe that status is the Kerberos time-difference error, meaning WS01's clock and the domain controller's clock were too far apart for the login, but I have not verified the code. If that is right, WS01's clock was off again at 11:00 PM on 25 October, after I had fixed the time on the 23rd, and the 5:47:44 AM event is the failed attempt that shares its timestamp with the 4768 I couldn't explain earlier.
+* **One thing I can't explain:** the three events dated 21 October are older than the domain join. VirtualBox's snapshot times, which come from the host clock, put the join in the early hours of 22 October, so a machine that wasn't yet a domain member should not have been attempting Kerberos logins against the domain controller. DC01's own clock was wrong at some point in this period, so those timestamps may not be reliable. I have recorded it and not drawn a conclusion.
 
 
 ---
