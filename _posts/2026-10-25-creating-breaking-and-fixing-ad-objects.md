@@ -14,7 +14,7 @@ tags: [ Active Directory, PowerShell, Kerberos, Event Logs, Group Policy, Hybrid
 
 This is the sixth post in my **Hybrid Identity Detection Lab** project. In the [last post](/posts/joining-a-windows-client-to-the-domain/) I joined a Windows 11 client to `lab.internal`. The next job in the plan is a script that builds five organisational units and 150 users. I decided not to write it first.
 
-If I paste a script I don't understand, I can't debug it when it breaks, and I can't explain it in an interview. So I did the whole life of one test account by hand: **create, edit, move, delete, disable, enable, restore**. I made mistakes on purpose and by accident, and I read the Windows event each action left in the Security log, because those are the events my detections will use later.
+I did not want to paste a script I can't debug or explain, so I first ran the whole life of one test account by hand: **create, edit, move, delete, disable, enable, restore**. I read the Windows event each action left in the Security log, because my detections will use those events later.
 
 This post is about the life of the account. A second post, [What a Domain Controller Logs, and What It Doesn't](/posts/what-a-domain-controller-logs-and-what-it-doesnt/), covers what I found when I went looking for the failed logins: a missing audit setting, no account lockout and a clock problem.
 
@@ -60,7 +60,7 @@ The cause was a missing comma:
 | select Name DistinguishedName, ProtectedFromAccidentalDeletion
 ```
 
-`Select-Object` takes the property names as one comma-separated list. Without the comma, `Name` is the first argument and `DistinguishedName, ProtectedFromAccidentalDeletion` is a second one with nowhere to go. The rule I took from it: "positional parameter cannot be found" usually means a missing comma or a stray space between values.
+`Select-Object` takes property names as one comma-separated list. Without the comma, `DistinguishedName, ProtectedFromAccidentalDeletion` becomes a second argument with nowhere to go. "Positional parameter cannot be found" usually means a missing comma.
 
 ---
 
@@ -79,13 +79,13 @@ _The first attempt, the second attempt, and a lookup with misspelled property na
 
 Three separate things happened here.
 
-**1. The password was refused.** `The password does not meet the length, complexity, or history requirement of the domain.` That message is generic: Windows uses one error for several causes. The password prompt is hidden, so I can't say which rule my password broke.
+**1. The password was refused.** `The password does not meet the length, complexity, or history requirement of the domain.` That message is generic, and I can't say which rule my hidden password broke.
 
 **2. The failed command still created the user.** `New-ADUser` creates the account first and sets the password afterwards. When the password is refused, the account is left behind, disabled and without a password. The last lines of the screenshot show `Enabled : False`.
 
 **3. The second attempt said "The specified account already exists".** That was the leftover from the first attempt. The second attempt never reached the password check.
 
-The blank `SamAccountNmae` and `UserPrincipalNmae` fields in the last output are typos in my command, not missing data. `Select-Object` does not raise an error for a property that doesn't exist: it prints an empty value. If a field comes back blank, check the spelling first.
+The blank `SamAccountNmae` and `UserPrincipalNmae` fields are typos in my command. `Select-Object` prints an empty value for a property that doesn't exist, so a blank field means check the spelling.
 
 ### The fix
 
@@ -114,11 +114,7 @@ Get-ADUser tuser -Properties MemberOf | Select Name, MemberOf
 ![Desktop View](/assets/images/Fifteenth_blog/dc01-group-created-member-added.png){: width="1012" height="311" }
 _The group holds the user, and the user's MemberOf lists the group_
 
-* `-GroupScope Global` is the standard type for "all the people in a department".
-* `-GroupCategory Security` means the group can be given permissions. The other kind, Distribution, only works for email lists.
-* The `GG-` prefix is a naming convention for Global Group.
-
-The two checks show the same fact from both sides. Permissions go to groups, not to people. When someone changes department, you change their groups and the access follows.
+`-GroupScope Global` is the standard type for a department's people, `-GroupCategory Security` means it can be given permissions (a Distribution group only works for email), and `GG-` is my naming convention for Global Group. Permissions go to groups, not people, so when someone changes department only their groups change.
 
 ---
 
@@ -150,7 +146,7 @@ _Both accounts have Domain Users as the primary group, ID 513_
 
 Both accounts show `CN=Domain Users` with `PrimaryGroupID 513`. The primary group is stored in its own field, so it doesn't appear in `MemberOf`. The account looks correct in the directory and the login token still lacks the group.
 
-**I don't know why.** I had a guess, that the account created by the failed command was left in an odd state, but the directory data doesn't support it. I haven't tested anything that would settle it. My plan is to delete `tuser`, recreate it cleanly, and run `whoami /groups` again.
+**I don't know why.** My plan is to recreate `tuser` cleanly and run `whoami /groups` again.
 
 ---
 
@@ -183,7 +179,7 @@ My first query only showed time and event ID:
 ![Desktop View](/assets/images/Fifteenth_blog/dc01-logon-events-4768-4624-list.png){: width="1008" height="479" }
 _Twenty events with no account names: many belong to computers and services, not to a person_
 
-There was a 4768 at 5:47:44 AM, and I assumed it was `tuser`. When I filtered on the account name, it wasn't in the list. I don't know whose it was. The lesson is to filter by `TargetUserName` before attributing an event to anyone. Several of the 4624 events also repeat at the same second each minute, which looks like automated activity and not a person. I did not look into what it is.
+I assumed the 4768 at 5:47:44 AM was `tuser`'s, but filtering on the account name showed it wasn't. Filter by `TargetUserName` before attributing an event to anyone.
 
 ---
 
@@ -198,7 +194,7 @@ Move-ADObject -Identity (Get-ADUser tuser).DistinguishedName -TargetPath "OU=Lab
 ![Desktop View](/assets/images/Fifteenth_blog/dc01-edit-and-move-user.png){: width="964" height="383" }
 _Three attributes set, then the user moved from Lab_test to Lab_moved_
 
-The distinguished name changed from `CN=Test-User,OU=Lab_test,...` to `CN=Test-User,OU=Lab_moved,...`. A user's DN includes its OU. The SID and login name stay the same. Group Policy attaches to OUs, so moving an account to another OU changes which policies it gets. The group `GG-Test` did not move with the user, because groups are separate objects.
+The DN changed from `OU=Lab_test` to `OU=Lab_moved`, because it includes the OU. The SID and login name stay the same. Group Policy attaches to OUs, so moving an account changes which policies it gets. The group `GG-Test` did not move with it.
 
 ---
 
@@ -250,7 +246,7 @@ Then I tried to sign in on `WS01` as `Lab\tuser` with the correct password:
 ![Desktop View](/assets/images/Fifteenth_blog/ws01-login-account-disabled.png){: width="925" height="874" }
 _"Your account has been disabled. Please see your system administrator."_
 
-The message is plain, and it tells whoever types the password that the account exists and is disabled. On DC01 I read the log:
+The message tells whoever types the password that the account exists and is disabled. On DC01 I read the log:
 
 ```powershell
 Get-WinEvent -LogName Security -FilterXPath "*[System[(EventID=4725 or EventID=4722 or EventID=4768 or EventID=4771)]]" -MaxEvents 8 | Select TimeCreated, Id
@@ -359,15 +355,11 @@ Add-ADGroupMember -Identity "GG-Recover" -Members tuser
 _The irreversible warning, the feature now listing its scopes, and the new account with SID ending 1107_
 
 * Windows warns that enabling the feature "is an irreversible action" and that I "will not be able to disable" it. `EnabledScopes` is no longer empty.
-* The new account is called `tuser` again, but its SID ends in **1107**, where the deleted one ended in 1104. Active Directory identifies an account by its SID, not its name. The numbers also show the order things were created: 1104 the first `tuser`, 1105 `GG-Test`, 1106 `GG-Recover`, 1107 this one. To Windows, this is a different account that happens to have the same name, so any permission that was given to the old SID does not apply to it.
-
-### The "almost there" screen
-
-The first time I signed in as the new `tuser` on `WS01`, Windows showed its new-account screen ("Hi", "almost there"). That fits the SID: Windows builds a profile for each SID on the first login, and this SID has never logged in. I believe it also means the old account's profile folder is still on the disk, and the new one got its own. I have not checked that yet. `Get-ChildItem C:\Users` on WS01 should show it.
+* The new account is called `tuser` again, but its SID ends in **1107**, where the deleted one ended in 1104. Active Directory identifies an account by its SID, not its name. The numbers also show the order things were created: 1104 the first `tuser`, 1105 `GG-Test`, 1106 `GG-Recover`, 1107 this one. To Windows, this is a different account with the same name, so permissions given to the old SID don't apply to it. Its first sign-in on `WS01` also builds a new profile.
 
 ### The `Domain Users` question again
 
-This was the test for my earlier guess, that the account left behind by the failed command was in some odd state. The new account was created cleanly, on the first attempt:
+To test my guess about the failed command, I checked the clean account, which was created correctly on the first attempt:
 
 ```powershell
 whoami /groups
@@ -376,7 +368,7 @@ whoami /groups
 ![Desktop View](/assets/images/Fifteenth_blog/ws01-tuser-clean-whoami-groups.png){: width="1458" height="455" }
 _A clean account, and `LAB\Domain Users` is still not in the login token; only LAB\GG-Recover is_
 
-`LAB\Domain Users` is **still missing**, so the failed first attempt was not the cause, and my guess was wrong. The group `GG-Recover` shows up, with its new SID ending in 1106. Something else removes `Domain Users` from the token, or from the way `whoami` lists it. I have not found out what.
+`LAB\Domain Users` is **still missing**, so the failed first attempt was not the cause. `GG-Recover` shows up (SID ending 1106), but `Domain Users` doesn't, and I haven't found out why.
 
 To see the directory's side of it, I asked the domain controller from `WS01`:
 
@@ -387,7 +379,7 @@ net user tuser /domain
 ![Desktop View](/assets/images/Fifteenth_blog/ws01-net-user-tuser-domain.png){: width="1123" height="600" }
 _The domain controller lists the account's groups as GG-Recover and Domain Users_
 
-The last line shows `Global Group memberships  *GG-Recover  *Domain Users`. So the **directory has the membership**, and the **login token on the workstation does not show it**. The account is correct in Active Directory, and the difference appears between the domain controller and the token that `whoami` prints. I have not found where it disappears.
+The last line shows `*GG-Recover  *Domain Users`: the **directory has the membership**, and only the login token on the workstation lacks it.
 
 ---
 
@@ -472,7 +464,6 @@ It matches the starting screenshot: one OU (`Domain Controllers`), the users `Ad
 ## Still to do
 
 * **Find out why `Domain Users` is missing from the login token**, although Active Directory lists the membership. Compare Administrator's token on DC01 and on WS01.
-* **Check the profile folders** on WS01 to see whether the old `tuser` profile is still there.
 * **Read the three older 4722 events** on DC01 to find out which accounts they belong to.
 
 ## What I would do differently

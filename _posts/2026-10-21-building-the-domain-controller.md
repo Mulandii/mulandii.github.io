@@ -33,6 +33,9 @@ I did this in a fixed order, taking a snapshot before each risky step so I could
 
 With all three VMs running, my 16 GB host reached about 92% memory use, so I reduced DC01 to 3 GB and the firewall to about 1.2 GB.
 
+> Set the domain controller's clock correctly from the start. Kerberos rejects logins when two clocks differ by more than five minutes, and every domain member takes its time from the DC. I had to fix a wrong clock later (see [post 7](/posts/what-a-domain-controller-logs-and-what-it-doesnt/)).
+{: .prompt-warning }
+
 ---
 
 ## Step 1: A fixed address

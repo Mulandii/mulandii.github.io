@@ -54,7 +54,7 @@ With a threshold of 0, I expected nothing to stop me. I typed a wrong password f
 ![Desktop View](/assets/images/Fifteenth_blog/ws01-login-wrong-password-delay.png){: width="939" height="328" }
 _"Invalid credentials, delaying next attempt..." after repeated wrong passwords_
 
-The sign-in screen slowed me down. This is not an account lockout. The domain's lockout threshold is 0, and the delay comes from the Windows sign-in screen on the workstation, not from the domain controller. I have not timed how long it lasts. It protects only against someone typing at this keyboard. An attacker guessing passwords over the network never sees this screen, which is why the lockout threshold still has to be set on the domain. I then went to the domain controller to look for the failures:
+The sign-in screen slowed me down, but this is not an account lockout. The delay comes from the workstation, not the domain controller, and it only stops someone typing at that keyboard. A network attacker never sees it, so the domain still needs a lockout threshold. Then I looked for the failures on the domain controller:
 
 ```powershell
 Get-WinEvent -LogName Security -FilterXPath "*[System[(EventID=4771 or EventID=4625)]]" -MaxEvents 8 | Select TimeCreated, Id
@@ -80,7 +80,7 @@ I then read the workstation's own log and the older 4625 events on the domain co
 ![Desktop View](/assets/images/Fifteenth_blog/ws01-failed-logons-4625.png){: width="944" height="336" }
 _The workstation's own log: six failed interactive logons for tuser, each with the wrong-password sub status_
 
-Sub Status `0xC000006A` is the wrong-password code. `0xC0000072` would be a disabled account. So the **workstation** recorded my wrong passwords, with the account name, while the **domain controller** recorded nothing. A defender who collects logs only from the domain controller would miss someone guessing passwords at a keyboard. The workstations need to send their logs too, which is what the agents in Phase 2 are for. The first five events are 5 seconds apart and the last is 11 seconds after the fifth. I did not work out why.
+Sub Status `0xC000006A` is the wrong-password code. `0xC0000072` would be a disabled account. So the **workstation** recorded my wrong passwords, with the account name, while the **domain controller** recorded nothing. A defender who collects logs only from the domain controller would miss someone guessing passwords at a keyboard. The workstations need to send their logs too, which is what the agents in Phase 2 are for.
 
 **On DC01**, the 4625 list also holds two kinds of older entries:
 
@@ -89,74 +89,29 @@ _DC01's 4625 events: one wrong password at the console, and five network logons 
 
 
 * At 6:08:56 AM on 23 October, an interactive logon (type 2) failed on DC01 for `LAB\Administrator`, with the same sub status `0xC000006A`. That is a wrong password typed at the DC01 console. It has the same shape as the WS01 events, because both machines audit logon failures on themselves by default. Only the Kerberos failures on the domain controller are not recorded.
-* Five 4625 events with **no account name**, logon type `3` (network), logon process `Kerberos`, status `0xC0000133` and the source address `10.0.10.100`, which is WS01. The reason text says only "An Error occured during Logon". They are dated 2:44:58 PM and twice at 3:29:42 PM on 21 October, 5:47:44 AM on 23 October and 11:00:43 PM on 25 October. That status is `STATUS_TIME_DIFFERENCE_AT_DC`: the clocks of the two computers were too far apart for Kerberos, which tolerates five minutes. A [Microsoft support blog post](https://blogs.msdn.microsoft.com/asiatech/2009/04/26/kerberos-authentication-failed-due-to-time-skew/) documents that mapping. It means that on 25 October at 11:00 PM, after I had fixed the time on the 23rd, WS01 and DC01 still disagreed by more than the limit. I don't know which of the two clocks was wrong. The 5:47:44 AM event is the failed attempt that shares its timestamp with the 4768 I couldn't explain earlier.
-* **One thing I can't explain:** the three events dated 21 October are older than the domain join. VirtualBox's snapshot times, which come from the host clock, put the join in the early hours of 22 October, so a machine that wasn't yet a domain member should not have been attempting Kerberos logins against the domain controller. DC01's own clock was wrong at some point in this period, so those timestamps may not be reliable. I have recorded it and not drawn a conclusion.
-
-To check what the Windows error text says, I ran the Win32 time-skew error code:
-
-```powershell
-net helpmsg 1398
-```
-
-![Desktop View](/assets/images/Fifteenth_blog/dc01-net-helpmsg-1398.png){: width="945" height="79" }
-_"There is a time and/or date difference between the client and server."_
-
-
+* Five 4625 events with **no account name**, logon type `3` (network), logon process `Kerberos`, source `10.0.10.100` (WS01) and status `0xC0000133`: three on 21 October, one on 23 October and one on 25 October. That status means the two clocks were too far apart for Kerberos, which tolerates five minutes ([Microsoft documents the mapping](https://blogs.msdn.microsoft.com/asiatech/2009/04/26/kerberos-authentication-failed-due-to-time-skew/)). So WS01 and DC01 disagreed again on 25 October, after I had fixed the clock on the 23rd.
+* The three from 21 October are older than the domain join, which I can't explain. DC01's clock was unreliable then, so the timestamps may be wrong.
 
 ---
 
-## A detour: the wrong clock
+## The clock
 
-During the exercise, DC01 showed the wrong date, time and time zone. `w32tm /resync` on both DC01 and WS01 reported that the time change was too big.
+When setting up a domain controller, **the correct time is crucial**. Kerberos rejects a login when two clocks differ by more than five minutes, and every domain member takes its time from the DC.
 
-Kerberos rejects a login when two clocks differ by more than five minutes, and a wrong clock puts false times in the logs I'm studying. That makes it a real problem, not a cosmetic one.
-
-DC01 had been set to take its time from the internet with:
+DC01 showed the wrong date, time and time zone, and `w32tm /resync` reported "time change too big" on both machines. I pointed DC01 at Cloudflare and `pool.ntp.org`:
 
 ```powershell
 w32tm /config /manualpeerlist:"time.cloudflare.com,0x8 pool.ntp.org,0x8" /syncfromflags:manual /reliable:yes /update
 ```
 
-A restart of DC01 fixed the clock. I don't know whether the setting or the restart did it, and I don't know why the clock drifted. Afterwards the Settings app showed the time server list, a recent synchronisation and the Nairobi time zone:
-
-![Desktop View](/assets/images/Fifteenth_blog/dc01-time-settings-managed.png){: width="1044" height="778" }
-_Synchronised against Cloudflare, with the controls greyed out: "some of these settings are hidden or managed by your organization"_
-
-The controls to set the time automatically or manually are greyed out. I looked for the reason and checked which Group Policy applied:
-
-```powershell
-gpresult /scope computer /r
-```
-
-![Desktop View](/assets/images/Fifteenth_blog/dc01-gpresult-computer.png){: width="976" height="732" }
-_Only the two default policies apply. Local Group Policy is empty._
-
-Only `Default Domain Controllers Policy` and `Default Domain Policy` are applied, and Local Group Policy is empty. So no custom policy causes the message. My best guess is that it is how Windows behaves on a domain controller, which I have not confirmed.
-
-From the command line:
-
-```powershell
-w32tm /query /source
-w32tm /query /status
-```
+A restart fixed the clock. I don't know whether the setting or the restart did it, or why it drifted. Afterwards `w32tm /query /status` showed the Cloudflare source, and WS01's source was `DC01.lab.internal`, so time flows from the internet to DC01 to WS01.
 
 ![Desktop View](/assets/images/Fifteenth_blog/dc01-w32tm-source-status.png){: width="988" height="589" }
-_Source time.cloudflare.com, stratum 4, last successful sync at 5:38 AM, polling every 128 seconds_
+_Source time.cloudflare.com, stratum 4, last sync at 5:38 AM, polling every 128 seconds_
 
-The reference IP, `162.159.200.1`, belongs to Cloudflare, so NTP traffic really leaves the lab through the firewall, which also settles whether UDP port 123 works. On WS01:
+The Settings app greyed out the time controls with "managed by your organization". Only the two default Group Policy objects apply to DC01, so I think that is normal Windows behaviour on a domain controller, though I have not confirmed it.
 
-```powershell
-Get-TimeZone
-w32tm /resync
-w32tm /query /source
-```
-
-![Desktop View](/assets/images/Fifteenth_blog/ws01-timezone-resync.png){: width="951" height="405" }
-_E. Africa Standard Time, and a resync that completes successfully_
-
-The resync completed successfully, and the source on WS01 returned `DC01.lab.internal`. So time flows from the internet to DC01 to WS01, the way a domain should do it.
-
-I also installed the VirtualBox Guest Additions on DC01, so I can paste long commands. On Arch the ISO comes from a separate package, `virtualbox-guest-iso`. The shared clipboard is set to bidirectional. A two-way clipboard is a path between my real machine and the lab, and the whole design is about keeping them apart. Host to Guest would be the safer setting. DC01 is the defender and holds nothing hostile, so I accept it for now, and I will switch it off on any machine that handles malware.
+I also installed the VirtualBox Guest Additions on DC01 to paste long commands (on Arch the ISO is the `virtualbox-guest-iso` package). The clipboard is bidirectional, which is a path between my machine and the lab. I accept that on DC01 and will turn it off on any machine that handles malware.
 
 ---
 
@@ -165,14 +120,17 @@ I also installed the VirtualBox Guest Additions on DC01, so I can paste long com
 * A fresh domain controller records Kerberos **successes** and not **failures**. The audit setting says `Success` only, and there is no event 4771 anywhere in the log.
 * The workstation records its own failed interactive logons, with the account name and the wrong-password code. The domain controller records nothing for them. Logs from the workstations are not optional.
 * The domain has no account lockout, because the threshold is 0. The delay on the sign-in screen is the workstation's, and it does nothing against a network attack.
-* WS01 and DC01 disagreed about the time again after I thought I had fixed it, and Kerberos refused the login with the time-skew status.
+* WS01 and DC01 disagreed about the time again, and Kerberos refused the login.
 
-## Still to do
+## Still open across the series
 
-* **Fix the audit policy** so failures are recorded, in the Group Policy step: set Kerberos Authentication Service to Success and Failure, along with the related logon subcategories.
-* **Set an account lockout threshold** in the same policy.
-* **Measure WS01's clock offset** against DC01 (`w32tm /stripchart /computer:dc01.lab.internal /samples:3 /dataonly`), and find out why the two disagreed on 25 October and why the clock drifted in the first place.
-* **Explain the 21 October time-skew events**, which are older than the domain join.
+* DC01's network profile is `Public` after boot (post 4). It has to be fixed before the Windows Firewall policy.
+* The `dcdiag` DFSREvent warning (post 4): the event log is still unread.
+* On the Arch host, IPv6 forwarding is blocked only by one kernel setting (post 1).
+* The host route to the lab is not persistent, and I have not checked whether the DHCP blocks in the firewall log stopped (post 3).
+* `Domain Users` is missing from the login token (post 6).
+* Why the clock drifted, and the failed logons dated before the join.
+* Group Policy: record failed logons in the audit policy, and set an account lockout threshold.
 
 ## What I would do differently
 

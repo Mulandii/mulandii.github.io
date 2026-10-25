@@ -107,9 +107,9 @@ _Other user shows "Sign in to: LAB", which means the join worked_
 
 Two things are worth understanding here.
 
-**Why "Other user".** The login screen lists accounts that have signed in on this machine before. A domain account has never signed in here, so it isn't listed, and **Other user** is how you type one. The line **Sign in to: LAB** is the evidence that the join worked. I expect it showed the computer's name before the join, but I did not check.
+**Other user** is how you type an account the machine hasn't seen yet. **Sign in to: LAB** is the evidence that the join worked.
 
-**The slash.** The separator in `DOMAIN\user` is a backslash. A forward slash isn't part of that syntax, so Windows doesn't see a domain and a user name. One of my attempts used a forward slash:
+**The slash.** The separator in `DOMAIN\user` is a backslash. One of my attempts used a forward slash:
 
 ![Desktop View](/assets/images/Fourteenth_blog/ws01-login-slash-wrong.png){: width="936" height="672" }
 _The help text spells it out: domain name\domain user name, with a backslash_
@@ -117,7 +117,7 @@ _The help text spells it out: domain name\domain user name, with a backslash_
 ![Desktop View](/assets/images/Fourteenth_blog/ws01-login-backslash-right.png){: width="939" height="588" }
 _Lab\Administrator with a backslash_
 
-Capitals don't matter, so `Lab`, `LAB` and `lab` all work. The UPN form, `administrator@lab.internal`, also works.
+Capitals don't matter, and the UPN form `administrator@lab.internal` also works.
 
 ### LAB or WIN11 before the backslash
 
@@ -137,7 +137,7 @@ After the rename, the screen said **Sign in to: WS01**, and I had typed just `Ad
 ![Desktop View](/assets/images/Fourteenth_blog/ws01-login-after-rename.png){: width="944" height="894" }
 _The hint switched from LAB to WS01 after the rename, and the user name has no domain in front_
 
-With no domain in front, Windows tries the local account on the PC, not the domain account. The rule is simple: always type the domain, as `Lab\Administrator`. I don't know why the hint changed from LAB to WS01 after the rename. A restart may have reset it to the default. It did not matter once I typed the domain.
+With no domain in front, Windows tries the PC's local account. Always type the domain, as `Lab\Administrator`. I don't know why the hint changed from LAB to WS01 after the rename.
 
 ---
 

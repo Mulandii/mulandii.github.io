@@ -16,7 +16,7 @@ This is the first post in my **Hybrid Identity Detection Lab** project. The goal
 
 Before installing anything I designed the network. This post covers the design and the reasoning behind it, including a mistake in my first version.
 
-The full design document is in the project repository: `hybrid-identity-detection-lab` on GitHub.
+The full design document is in the project repository, [hybrid-identity-detection-lab](https://github.com/Mulandii/hybrid-identity-detection-lab). All the posts are listed in order on the [start page](/posts/hybrid-identity-detection-lab-start-here/).
 
 ---
 
@@ -40,6 +40,8 @@ The network had to meet four requirements:
 * **Domain controller:** Windows Server 2022 evaluation (VM `DC01`)
 * **Client:** Windows 11 Pro (VM `win11`)
 * **Attacker:** the Arch host itself
+
+The client VM is called `win11` in the first posts and is renamed `WS01` in [post 5](/posts/joining-a-windows-client-to-the-domain/). The design tables use the final names, `DC01` and `WS01`.
 
 ![Desktop View](/assets/images/Ninth_blog/vbox-lab-vms-snapshots.png){: width="948" height="510" }
 _The lab VMs in VirtualBox, each with a fresh-install snapshot_
@@ -66,7 +68,7 @@ I moved the attacker to its own subnet so that all attack traffic has to pass th
 | Zone | VirtualBox mode | Subnet | Members |
 |---|---|---|---|
 | Attacker | Host-Only (`vboxnet1`) | 10.0.66.0/24 | Arch host (10.0.66.2) |
-| Lab | Internal Network (`adlab-net`) | 10.0.10.0/24 | dc01, ws01 |
+| Lab | Internal Network (`adlab-net`) | 10.0.10.0/24 | DC01, WS01 |
 | Internet | NAT | from VirtualBox | pfSense WAN only |
 
 pfSense has three interfaces, one in each zone:
@@ -104,7 +106,7 @@ The replies come back by themselves. The lab machines use pfSense as their defau
 
 ### Why DNS and DHCP live on the domain controller
 
-Active Directory finds domain controllers through DNS records, so the client must use `dc01` as its DNS server. DHCP on the DC hands out the gateway and the DNS server together, so DHCP on pfSense is turned off to avoid two servers answering.
+Active Directory finds domain controllers through DNS records, so the client must use `DC01` as its DNS server. DHCP on the DC hands out the gateway and the DNS server together, so DHCP on pfSense is turned off to avoid two servers answering.
 
 ### The trade-off I chose
 
@@ -115,7 +117,7 @@ Servers and clients share one subnet. In production I would split them, but it a
 ## Safety controls
 
 * No bridged adapters, so nothing reaches the real network
-* The Arch host must not forward lab traffic to my real network. IP forwarding is **on**, because Docker is installed. I checked the firewall: the IPv4 `FORWARD` policy is `DROP` and Docker's chains only accept traffic from Docker's own bridges, so nothing forwards traffic from the lab interface. IPv6 is blocked only by the kernel setting `net.ipv6.conf.all.forwarding = 0`, while its firewall policy is `ACCEPT`, which is a weaker control that I have noted as an open item
+* The Arch host must not forward lab traffic to my real network. IP forwarding is on because Docker is installed, but the IPv4 `FORWARD` policy is `DROP` and nothing accepts traffic from the lab interface. IPv6 is blocked only because `net.ipv6.conf.all.forwarding` is 0, a weaker control that I track as an open item
 * My existing VirtualBox networks are untouched: I created a new Host-Only adapter and a new internal network name
 * Windows Server evaluation media only, and Windows 11 installed without a product key
 * A snapshot before every major change and before every attack

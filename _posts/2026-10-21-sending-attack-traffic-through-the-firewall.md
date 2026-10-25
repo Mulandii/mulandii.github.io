@@ -55,7 +55,7 @@ sudo ip route add 10.0.10.0/24 via 10.0.66.1
 ip route | grep 10.0.10
 ```
 
-The route list now shows `10.0.10.0/24 via 10.0.66.1 dev vboxnet1`. This route disappears when the host reboots, so I will make it permanent later.
+The route list now shows `10.0.10.0/24 via 10.0.66.1 dev vboxnet1`. This route disappears when the host reboots, and I had to add it again after each reboot. Making it permanent is still on my list.
 
 ---
 
@@ -88,7 +88,7 @@ _The log entry and its rule details: a packet from 10.0.66.2 entering on em2 and
 
 The log is full of blocked entries on the **LAN** interface: UDP from `0.0.0.0` port 68 to `255.255.255.255` port 67. These are DHCP requests from a machine that has no address yet. pfSense blocks them for two reasons: its DHCP server is off by design, and the source address `0.0.0.0` is not inside the LAN network, so the LAN allow rule does not match.
 
-I expect they come from the domain controller VM, which is still using DHCP. I will confirm that when it gets its fixed address, and the entries should stop.
+I expect they come from the domain controller VM, which was still using DHCP at that point. I have not checked whether they stopped once it got its fixed address.
 
 ---
 
