@@ -548,7 +548,7 @@ The restore **worked**. The SID is the same `...-1107`, the account is enabled, 
 
 The reason this matters in practice is that a person or an attacker who deletes accounts can be undone in seconds with the bin on, and not at all without it. It also leaves a trail: event 4726 records a deletion. The Recycle Bin goes on my list for the hardened baseline.
 
-I did not test whether the old password still works after the restore.
+I then signed in on `WS01` as the restored `tuser`, and **the old password still worked**. The restore brought back the password along with the rest of the account.
 
 ---
 
@@ -561,7 +561,6 @@ I did not test whether the old password still works after the restore.
 ## Still to do
 
 * **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
-* **Sign in as the restored `tuser`** on WS01 to see whether the old password still works.
 * **Find out why `Domain Users` is missing from the token**, now that a clean account has the same problem. Compare with `net user tuser /domain` and with the Administrator account.
 * **Check the profile folders** on WS01 to see whether the old `tuser` profile is still there.
 * **Fix the audit policy** so failures are recorded, in the Group Policy step.
