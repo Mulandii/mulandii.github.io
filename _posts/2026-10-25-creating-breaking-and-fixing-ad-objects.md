@@ -310,7 +310,22 @@ _Only event 4625 appears, nothing newer than 11:00 PM, and the Kerberos Authenti
 * The newest 4625 is from 11:00:43 PM, which is before I disabled the account at 11:11 PM and long before the wrong-password test. So none of my five failed attempts left an event on the DC.
 * The audit setting explains it: **Kerberos Authentication Service is set to Success only**. Failures are not recorded, so no 4771 can exist.
 
-I did not check the WS01 side. The workstation may have logged the failed attempts in its own Security log as event 4625, and that is the next thing to read. I also don't know yet what the older 4625 events on DC01 are. One of them, at 5:47:44 AM on 23 October, has exactly the same timestamp as the unexplained 4768 from earlier, and it is worth reading in full.
+I then read the workstation's own log and the older 4625 events on the domain controller. The two machines tell different stories.
+
+**On WS01**, the failed attempts are there. Six 4625 events from 11:33:16 PM to 11:33:47 PM, all with:
+
+* Account Name `tuser`, Account Domain `LAB`
+* Logon Type `2` (interactive, at the keyboard)
+* Status `0xC000006D` and Sub Status `0xC000006A`, with the reason "Unknown user name or bad password"
+* Subject `WS01$`, source address `127.0.0.1`, logon process `User32`
+
+Sub Status `0xC000006A` is the wrong-password code. `0xC0000072` would be a disabled account. So the **workstation** recorded my wrong passwords, with the account name, while the **domain controller** recorded nothing. A defender who collects logs only from the domain controller would miss someone guessing passwords at a keyboard. The workstations need to send their logs too, which is what the agents in Phase 2 are for. The first five events are 5 seconds apart and the last is 11 seconds after the fifth. I did not work out why.
+
+**On DC01**, the 4625 list also holds two kinds of older entries:
+
+* At 6:08:56 AM on 23 October, an interactive logon (type 2) failed on DC01 for `LAB\Administrator`, with the same sub status `0xC000006A`. That is a wrong password typed at the DC01 console. It has the same shape as the WS01 events, because both machines audit logon failures on themselves by default. Only the Kerberos failures on the domain controller are not recorded.
+* At 5:47:44 AM on 23 October and again at 11:00:43 PM on 25 October, there are two 4625 events with **no account name**, logon type `3` (network), logon process `Kerberos`, the status `0xC0000133` and the source address `10.0.10.100`, which is WS01. The reason text says only "An Error occured during Logon". I believe that status is the Kerberos time-difference error, meaning WS01's clock and the domain controller's clock were too far apart for the login, but I have not verified the code. If that is right, WS01's clock was off again at 11:00 PM on 25 October, after I had fixed the time on the 23rd, and the 5:47:44 AM event is the failed attempt that shares its timestamp with the 4768 I couldn't explain earlier.
+
 
 ---
 
@@ -379,7 +394,8 @@ I also installed the VirtualBox Guest Additions on DC01, so I can paste long com
 
 * **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
 * **Delete and recreate `tuser`** cleanly, and check `whoami /groups` again to find out whether `Domain Users` appears.
-* **Fix the audit policy** so failures are recorded, in the Group Policy step, and read the failed-login events on `WS01`.
+* **Fix the audit policy** so failures are recorded, in the Group Policy step.
+* **Verify the `0xC0000133` status** (`net helpmsg 1398` gives the text for the matching error), and measure WS01's clock offset against DC01.
 * Find out why the clock drifted.
 
 ## What I would do differently
