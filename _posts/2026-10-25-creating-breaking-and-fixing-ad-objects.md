@@ -259,7 +259,7 @@ _Event 4725, "an account was disabled", at 11:11:29 PM, above the earlier ticket
 
 Event **4725** records the disabling. The 4768 events below it are from 11:00 to 11:02 PM, before I disabled the account.
 
-**What surprised me:** the newest event is the 4725. I tried to sign in after disabling the account, and the list has no failure event from that attempt. I did not check why. My guess is that the domain controller's audit policy records successes for Kerberos events but not failures by default. I haven't confirmed that, and the way to check is `auditpol /get /subcategory:"Kerberos Authentication Service"`. If it is true, a detection that depends on failed logins would see nothing until the audit policy is set.
+**What surprised me:** the newest event is the 4725. I tried to sign in after disabling the account, and the list has no failure event from that attempt. I did not check why. I checked the audit policy afterwards, and the next section shows the result: the domain controller records Kerberos successes but not failures. A detection that depends on failed logins would see nothing until the audit policy is changed.
 
 ### Enabling it again
 
@@ -296,7 +296,21 @@ With a threshold of 0, I expected nothing to stop me. I typed a wrong password f
 ![Desktop View](/assets/images/Fifteenth_blog/ws01-login-wrong-password-delay.png){: width="939" height="328" }
 _"Invalid credentials, delaying next attempt..." after repeated wrong passwords_
 
-The sign-in screen slowed me down. This is not an account lockout. The domain's lockout threshold is 0, and the delay comes from the Windows sign-in screen on the workstation, not from the domain controller. I have not timed how long it lasts. It protects only against someone typing at this keyboard. An attacker guessing passwords over the network never sees this screen, which is why the lockout threshold still has to be set on the domain. I have not yet read the failure events on the DC for these attempts.
+The sign-in screen slowed me down. This is not an account lockout. The domain's lockout threshold is 0, and the delay comes from the Windows sign-in screen on the workstation, not from the domain controller. I have not timed how long it lasts. It protects only against someone typing at this keyboard. An attacker guessing passwords over the network never sees this screen, which is why the lockout threshold still has to be set on the domain. I then went to the domain controller to look for the failures:
+
+```powershell
+Get-WinEvent -LogName Security -FilterXPath "*[System[(EventID=4771 or EventID=4625)]]" -MaxEvents 8 | Select TimeCreated, Id
+auditpol /get /subcategory:"Kerberos Authentication Service"
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-failed-logon-events-auditpol.png){: width="891" height="567" }
+_Only event 4625 appears, nothing newer than 11:00 PM, and the Kerberos Authentication Service audit setting is Success only_
+
+* There is **no event 4771** at all. 4771 is the Kerberos pre-authentication failure, the event a wrong password produces on the domain controller.
+* The newest 4625 is from 11:00:43 PM, which is before I disabled the account at 11:11 PM and long before the wrong-password test. So none of my five failed attempts left an event on the DC.
+* The audit setting explains it: **Kerberos Authentication Service is set to Success only**. Failures are not recorded, so no 4771 can exist.
+
+I did not check the WS01 side. The workstation may have logged the failed attempts in its own Security log as event 4625, and that is the next thing to read. I also don't know yet what the older 4625 events on DC01 are. One of them, at 5:47:44 AM on 23 October, has exactly the same timestamp as the unexplained 4768 from earlier, and it is worth reading in full.
 
 ---
 
@@ -359,13 +373,13 @@ I also installed the VirtualBox Guest Additions on DC01, so I can paste long com
 
 * I created, edited, moved, deleted, disabled and enabled objects by hand, and read the Windows event each one left behind.
 * I hit and fixed six errors: a missing comma, a refused password, a leftover account, misspelled property names, and two deletion locks.
-* I found two real security findings: no account lockout, and a possible gap in what the domain controller audits.
+* I found two real security findings: no account lockout, and a domain controller that records Kerberos successes but not failures.
 
 ## Still to do
 
 * **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
 * **Delete and recreate `tuser`** cleanly, and check `whoami /groups` again to find out whether `Domain Users` appears.
-* **Check the audit policy** with `auditpol` to see whether failed Kerberos logins are recorded.
+* **Fix the audit policy** so failures are recorded, in the Group Policy step, and read the failed-login events on `WS01`.
 * Find out why the clock drifted.
 
 ## What I would do differently
