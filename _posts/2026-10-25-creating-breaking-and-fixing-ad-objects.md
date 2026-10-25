@@ -417,6 +417,54 @@ It is off, which is the default on a new domain. Enabling it cannot be undone fo
 
 ---
 
+## Deleting a user and trying to get it back
+
+First I gave `tuser` a group, so I could see what a delete does to membership, and I wrote down everything the account had:
+
+```powershell
+New-ADGroup -Name "GG-Recover" -GroupScope Global -GroupCategory Security -Path "OU=Lab_moved,DC=lab,DC=internal"
+Add-ADGroupMember -Identity "GG-Recover" -Members tuser
+Get-ADUser tuser -Properties * | Select Name, SID, ObjectGUID, Department, Title, MemberOf
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-tuser-before-delete.png){: width="1064" height="336" }
+_The account before the delete: SID ending 1104, department IT, title Test Engineer, member of GG-Recover_
+
+I took a snapshot of DC01 first, then deleted the account:
+
+```powershell
+Remove-ADUser -Identity tuser -Confirm:$false
+Get-ADUser tuser
+```
+
+`Get-ADUser` now fails with "Cannot find an object with identity". The account is gone from the directory, but a deleted object is not erased at once. With the Recycle Bin off, it becomes a tombstone in a hidden container, and I looked at it there:
+
+```powershell
+Get-ADObject -Filter 'isDeleted -eq $true -and samAccountName -eq "tuser"' -IncludeDeletedObjects -Properties * | Select Name, SamAccountName, LastKnownParent, ObjectSID, MemberOf, Department, Title
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-tuser-tombstone.png){: width="986" height="553" }
+_The tombstone keeps the SID and the old location, and nothing else_
+
+* The **name is rewritten** to `Test-User` followed by `DEL:` and the account's original GUID.
+* `SamAccountName`, `ObjectSID` (still ending in `1104`) and `LastKnownParent` (`OU=Lab_moved`) survive.
+* **`MemberOf`, `Department` and `Title` are empty.** The group memberships and the attributes are gone.
+
+That matched what I expected. What I did not expect was what happened when I tried to restore it:
+
+```powershell
+Get-ADObject -Filter 'isDeleted -eq $true -and samAccountName -eq "tuser"' -IncludeDeletedObjects | Restore-ADObject
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-tuser-restore-failed.png){: width="957" height="424" }
+_Restore-ADObject: "Illegal modify operation. Some aspect of the modification is not permitted"; the user is still not found, and GG-Recover is empty_
+
+The restore **failed** with `Illegal modify operation. Some aspect of the modification is not permitted`. `Get-ADUser tuser` still can't find the account, and `Get-ADGroupMember GG-Recover` prints nothing, so the group lost its member.
+
+I haven't established the exact reason for this error. What I found while looking is that the native restore commands are built around the Recycle Bin, and that [without it a deleted user is generally treated as past recovery](https://netwrix.com/en/resources/blog/active-directory-object-recovery-recycle-bin/). The same source says that enabling the Recycle Bin afterwards does not bring tombstones back. I have not tested that, so I will not rely on it. The practical lesson stands whichever way the error is explained: **the Recycle Bin has to be turned on before the deletion, and a restore from backup is the fallback.** In my lab the fallback is the snapshot.
+
+---
+
 ## Outcome
 
 * I created, edited, moved, deleted, disabled and enabled objects by hand, and read the Windows event each one left behind.
@@ -426,7 +474,7 @@ It is off, which is the default on a new domain. Enabling it cannot be undone fo
 ## Still to do
 
 * **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
-* **Delete and recreate `tuser`** cleanly, and check `whoami /groups` again to find out whether `Domain Users` appears.
+* **Enable the Recycle Bin**, create a clean `tuser`, check `whoami /groups` again to find out whether `Domain Users` appears, then delete and restore it to compare with the failed restore above.
 * **Fix the audit policy** so failures are recorded, in the Group Policy step.
 * **Measure WS01's clock offset** against DC01, and find out why the two disagreed on 25 October.
 * Find out why the clock drifted.
