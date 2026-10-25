@@ -498,6 +498,17 @@ _A clean account, and `LAB\Domain Users` is still not in the login token; only L
 
 `LAB\Domain Users` is **still missing**, so the failed first attempt was not the cause, and my guess was wrong. The group `GG-Recover` shows up, with its new SID ending in 1106. Something else removes `Domain Users` from the token, or from the way `whoami` lists it. I have not found out what.
 
+To see the directory's side of it, I asked the domain controller from `WS01`:
+
+```powershell
+net user tuser /domain
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/ws01-net-user-tuser-domain.png){: width="1123" height="600" }
+_The domain controller lists the account's groups as GG-Recover and Domain Users_
+
+The last line shows `Global Group memberships  *GG-Recover  *Domain Users`. So the **directory has the membership**, and the **login token on the workstation does not show it**. The account is correct in Active Directory, and the difference appears between the domain controller and the token that `whoami` prints. I have not found where it disappears.
+
 ---
 
 ## Outcome
