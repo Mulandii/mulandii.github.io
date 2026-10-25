@@ -465,6 +465,41 @@ I haven't established the exact reason for this error. What I found while lookin
 
 ---
 
+## Turning the Recycle Bin on, and starting again with a clean account
+
+Taking the snapshot first was deliberate: enabling the Recycle Bin cannot be undone, and a snapshot is the only way back if I regret it. Then I enabled it and created a new `tuser`, typing the password carefully so the first attempt would work:
+
+```powershell
+Enable-ADOptionalFeature -Identity 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target 'lab.internal' -Confirm:$false
+New-ADUser -Name "Test-User" -GivenName Test -Surname User -SamAccountName tuser -UserPrincipalName tuser@lab.internal -Path "OU=Lab_moved,DC=lab,DC=internal" -AccountPassword (Read-Host -AsSecureString "Password") -Enabled $true -Department "IT" -Title "Test Engineer"
+Add-ADGroupMember -Identity "GG-Recover" -Members tuser
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-recycle-bin-enabled-new-tuser.png){: width="1044" height="475" }
+_The irreversible warning, the feature now listing its scopes, and the new account with SID ending 1107_
+
+* Windows warns that enabling the feature "is an irreversible action" and that I "will not be able to disable" it. `EnabledScopes` is no longer empty.
+* The new account is called `tuser` again, but its SID ends in **1107**, where the deleted one ended in 1104. Active Directory identifies an account by its SID, not its name. The numbers also show the order things were created: 1104 the first `tuser`, 1105 `GG-Test`, 1106 `GG-Recover`, 1107 this one. To Windows, this is a different account that happens to have the same name, so any permission that was given to the old SID does not apply to it.
+
+### The "almost there" screen
+
+The first time I signed in as the new `tuser` on `WS01`, Windows showed its new-account screen ("Hi", "almost there"). That fits the SID: Windows builds a profile for each SID on the first login, and this SID has never logged in. I believe it also means the old account's profile folder is still on the disk, and the new one got its own. I have not checked that yet. `Get-ChildItem C:\Users` on WS01 should show it.
+
+### The `Domain Users` question again
+
+This was the test for my earlier guess, that the account left behind by the failed command was in some odd state. The new account was created cleanly, on the first attempt:
+
+```powershell
+whoami /groups
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/ws01-tuser-clean-whoami-groups.png){: width="1458" height="455" }
+_A clean account, and `LAB\Domain Users` is still not in the login token; only LAB\GG-Recover is_
+
+`LAB\Domain Users` is **still missing**, so the failed first attempt was not the cause, and my guess was wrong. The group `GG-Recover` shows up, with its new SID ending in 1106. Something else removes `Domain Users` from the token, or from the way `whoami` lists it. I have not found out what.
+
+---
+
 ## Outcome
 
 * I created, edited, moved, deleted, disabled and enabled objects by hand, and read the Windows event each one left behind.
@@ -474,7 +509,9 @@ I haven't established the exact reason for this error. What I found while lookin
 ## Still to do
 
 * **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
-* **Enable the Recycle Bin**, create a clean `tuser`, check `whoami /groups` again to find out whether `Domain Users` appears, then delete and restore it to compare with the failed restore above.
+* **Delete and restore the new `tuser`** with the Recycle Bin on, and compare with the failed restore above.
+* **Find out why `Domain Users` is missing from the token**, now that a clean account has the same problem. Compare with `net user tuser /domain` and with the Administrator account.
+* **Check the profile folders** on WS01 to see whether the old `tuser` profile is still there.
 * **Fix the audit policy** so failures are recorded, in the Group Policy step.
 * **Measure WS01's clock offset** against DC01, and find out why the two disagreed on 25 October.
 * Find out why the clock drifted.
