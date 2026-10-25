@@ -331,8 +331,18 @@ _DC01's 4625 events: one wrong password at the console, and five network logons 
 
 
 * At 6:08:56 AM on 23 October, an interactive logon (type 2) failed on DC01 for `LAB\Administrator`, with the same sub status `0xC000006A`. That is a wrong password typed at the DC01 console. It has the same shape as the WS01 events, because both machines audit logon failures on themselves by default. Only the Kerberos failures on the domain controller are not recorded.
-* Five 4625 events with **no account name**, logon type `3` (network), logon process `Kerberos`, status `0xC0000133` and the source address `10.0.10.100`, which is WS01. The reason text says only "An Error occured during Logon". They are dated 2:44:58 PM and twice at 3:29:42 PM on 21 October, 5:47:44 AM on 23 October and 11:00:43 PM on 25 October. I believe that status is the Kerberos time-difference error, meaning WS01's clock and the domain controller's clock were too far apart for the login, but I have not verified the code. If that is right, WS01's clock was off again at 11:00 PM on 25 October, after I had fixed the time on the 23rd, and the 5:47:44 AM event is the failed attempt that shares its timestamp with the 4768 I couldn't explain earlier.
+* Five 4625 events with **no account name**, logon type `3` (network), logon process `Kerberos`, status `0xC0000133` and the source address `10.0.10.100`, which is WS01. The reason text says only "An Error occured during Logon". They are dated 2:44:58 PM and twice at 3:29:42 PM on 21 October, 5:47:44 AM on 23 October and 11:00:43 PM on 25 October. That status is `STATUS_TIME_DIFFERENCE_AT_DC`: the clocks of the two computers were too far apart for Kerberos, which tolerates five minutes. A [Microsoft support blog post](https://blogs.msdn.microsoft.com/asiatech/2009/04/26/kerberos-authentication-failed-due-to-time-skew/) documents that mapping. It means that on 25 October at 11:00 PM, after I had fixed the time on the 23rd, WS01 and DC01 still disagreed by more than the limit. I don't know which of the two clocks was wrong. The 5:47:44 AM event is the failed attempt that shares its timestamp with the 4768 I couldn't explain earlier.
 * **One thing I can't explain:** the three events dated 21 October are older than the domain join. VirtualBox's snapshot times, which come from the host clock, put the join in the early hours of 22 October, so a machine that wasn't yet a domain member should not have been attempting Kerberos logins against the domain controller. DC01's own clock was wrong at some point in this period, so those timestamps may not be reliable. I have recorded it and not drawn a conclusion.
+
+To check what the Windows error text says, I ran the Win32 time-skew error code:
+
+```powershell
+net helpmsg 1398
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-net-helpmsg-1398.png){: width="945" height="79" }
+_"There is a time and/or date difference between the client and server."_
+
 
 
 ---
@@ -403,7 +413,7 @@ I also installed the VirtualBox Guest Additions on DC01, so I can paste long com
 * **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
 * **Delete and recreate `tuser`** cleanly, and check `whoami /groups` again to find out whether `Domain Users` appears.
 * **Fix the audit policy** so failures are recorded, in the Group Policy step.
-* **Verify the `0xC0000133` status** (`net helpmsg 1398` gives the text for the matching error), and measure WS01's clock offset against DC01.
+* **Measure WS01's clock offset** against DC01, and find out why the two disagreed on 25 October.
 * Find out why the clock drifted.
 
 ## What I would do differently
