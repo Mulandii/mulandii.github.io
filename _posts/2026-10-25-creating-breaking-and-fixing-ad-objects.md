@@ -511,6 +511,47 @@ The last line shows `Global Group memberships  *GG-Recover  *Domain Users`. So t
 
 ---
 
+## The same delete, with the Recycle Bin on
+
+With the Recycle Bin enabled, I repeated the exercise with the new `tuser`: delete it, look at what is left, and restore it.
+
+```powershell
+Remove-ADUser -Identity tuser -Confirm:$false
+Get-ADObject -Filter 'isDeleted -eq $true -and samAccountName -eq "tuser"' -IncludeDeletedObjects -Properties * | Sort-Object whenChanged -Descending | Select-Object -First 1 | Select Name, SamAccountName, LastKnownParent, ObjectSID, MemberOf, Department, Title
+```
+
+The `Sort-Object … Select-Object -First 1` part picks the newest deleted object called `tuser`, in case an older tombstone is still around.
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-tuser-tombstone-recyclebin.png){: width="1068" height="414" }
+_With the Recycle Bin on, the deleted object still has its department, title and group_
+
+This time the deleted object keeps **everything**: `Department IT`, `Title Test Engineer`, and `MemberOf` still lists `GG-Recover`. The name is still rewritten with `DEL:` and a GUID, but nothing has been stripped. Then I restored it:
+
+```powershell
+Get-ADObject -Filter 'isDeleted -eq $true -and samAccountName -eq "tuser"' -IncludeDeletedObjects -Properties whenChanged | Sort-Object whenChanged -Descending | Select-Object -First 1 | Restore-ADObject
+Get-ADUser tuser -Properties * | Select Name, SID, Enabled, Department, Title, MemberOf
+Get-ADGroupMember "GG-Recover" | Select Name
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-tuser-restored.png){: width="1047" height="443" }
+_Restored: the same SID, enabled, with department, title and group membership, and GG-Recover has its member back_
+
+The restore **worked**. The SID is the same `...-1107`, the account is enabled, the department, title and group are all back, and `Get-ADGroupMember GG-Recover` lists `Test-User` again.
+
+### The two runs side by side
+
+| | Recycle Bin off | Recycle Bin on |
+|---|---|---|
+| Deleted object keeps | SID, old location | SID, old location, department, title, group membership |
+| `Restore-ADObject` | Failed: "Illegal modify operation" | Worked |
+| After the delete and restore | The group lost its member, and the account was not found | The account is back with the same SID, and the group has its member |
+
+The reason this matters in practice is that a person or an attacker who deletes accounts can be undone in seconds with the bin on, and not at all without it. It also leaves a trail: event 4726 records a deletion. The Recycle Bin goes on my list for the hardened baseline.
+
+I did not test whether the old password still works after the restore.
+
+---
+
 ## Outcome
 
 * I created, edited, moved, deleted, disabled and enabled objects by hand, and read the Windows event each one left behind.
@@ -520,7 +561,7 @@ The last line shows `Global Group memberships  *GG-Recover  *Domain Users`. So t
 ## Still to do
 
 * **Wrong passwords:** read events 4771 and 4625 for the failed attempts above, and confirm that the account did not lock.
-* **Delete and restore the new `tuser`** with the Recycle Bin on, and compare with the failed restore above.
+* **Sign in as the restored `tuser`** on WS01 to see whether the old password still works.
 * **Find out why `Domain Users` is missing from the token**, now that a clean account has the same problem. Compare with `net user tuser /domain` and with the Administrator account.
 * **Check the profile folders** on WS01 to see whether the old `tuser` profile is still there.
 * **Fix the audit policy** so failures are recorded, in the Group Policy step.
