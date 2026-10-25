@@ -402,6 +402,21 @@ I also installed the VirtualBox Guest Additions on DC01, so I can paste long com
 
 ---
 
+## Before deleting a user: is the Recycle Bin on?
+
+The last exercise is deleting `tuser` and trying to get it back. What survives a delete depends on the **AD Recycle Bin**. With it off, a deleted object becomes a stripped-down "tombstone". With it on, the object is kept intact and can be restored with all its attributes. I checked:
+
+```powershell
+Get-ADOptionalFeature -Filter 'Name -eq "Recycle Bin Feature"' | Select Name, EnabledScopes
+```
+
+![Desktop View](/assets/images/Fifteenth_blog/dc01-recycle-bin-disabled.png){: width="919" height="222" }
+_EnabledScopes is empty, so the Recycle Bin is off_
+
+It is off, which is the default on a new domain. Enabling it cannot be undone for the forest, so I am leaving it off for the experiment to see what a recovery looks like without it, and I will enable it afterwards as a hardening step.
+
+---
+
 ## Outcome
 
 * I created, edited, moved, deleted, disabled and enabled objects by hand, and read the Windows event each one left behind.
