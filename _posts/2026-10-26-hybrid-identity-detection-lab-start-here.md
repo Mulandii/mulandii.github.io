@@ -30,6 +30,8 @@ The design documents, diagrams, notes and screenshots are in the repository: [hy
 | 5 | [Joining a Windows 11 client](/posts/joining-a-windows-client-to-the-domain/) | DNS checks, the join, and the login screen. |
 | 6 | [Creating, breaking and fixing AD objects](/posts/creating-breaking-and-fixing-ad-objects/) | One user's whole life by hand, and what the AD Recycle Bin changes. |
 | 7 | [What a domain controller logs, and what it doesn't](/posts/what-a-domain-controller-logs-and-what-it-doesnt/) | Failed logons, the audit gap, no lockout, and the clock. |
+| 8 | [Building the directory with a script](/posts/building-the-directory-with-a-script/) | Five OUs, six groups and 150 users from a CSV, with random passwords. |
+| 9 | [Audit policy by Group Policy](/posts/audit-policy-by-group-policy/) | Recording failed logons, and a policy that applied but wasn't read. |
 
 Post 7 ends with the list of problems still open across the series.
 
@@ -64,7 +66,7 @@ Windows Server runs as an evaluation, and Windows 11 is installed without a prod
 | Phase | Goal | Status |
 |---|---|---|
 | 0 | Setup and network design | Done |
-| 1 | Build and harden Active Directory | In progress: domain, DHCP, client join and manual account tests done. Next: the 150-user script and Group Policy hardening. |
+| 1 | Build and harden Active Directory | In progress: domain, DHCP, client join, 150 users and the audit policy done. Next: lockout and password policy, name-resolution settings, firewall policy. |
 | 2 | Attack and detect (Wazuh, Sigma) | Planned |
 | 3 | Digital forensics on the compromised domain controller | Planned |
 | 4 | Microsoft Sentinel and KQL | Planned |

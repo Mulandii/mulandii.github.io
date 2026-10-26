@@ -130,7 +130,7 @@ I also installed the VirtualBox Guest Additions on DC01 to paste long commands (
 * The host route to the lab is not persistent, and I have not checked whether the DHCP blocks in the firewall log stopped (post 3).
 * `Domain Users` is missing from the login token (post 6).
 * Why the clock drifted, and the failed logons dated before the join.
-* Group Policy: record failed logons in the audit policy, and set an account lockout threshold.
+* Group Policy: set an account lockout threshold. Recording failed logons is fixed in [post 9](/posts/audit-policy-by-group-policy/).
 
 ## What I would do differently
 
