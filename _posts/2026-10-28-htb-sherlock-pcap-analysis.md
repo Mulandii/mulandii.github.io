@@ -284,6 +284,31 @@ The connection lasted 0.0073 seconds, about 7.3 milliseconds.
 
 ---
 
+## Sherlock solved
+
+```console
+$ ./sherlock --verify PCAP_Analysis
+[+] task 1/6 ... ok
+[+] task 2/6 ... ok
+[+] task 3/6 ... ok
+[+] task 4/6 ... ok
+[+] task 5/6 ... ok
+[+] task 6/6 ... ok
+[+] exit code 0, +165 XP
+```
+
+![Desktop View](/assets/images/Seventeenth_blog/solved.png)
+_PCAP Analysis solved on 28 Oct 2026, Sherlock rank #1993_
+
+A few nerdy numbers from the case:
+
+* **The upload took 7.3 ms.** One video frame at 60 fps lasts 16.7 ms, so the whole 107 KB transfer finished in less than half a frame. A TCP connection that never leaves a virtual switch does not wait on a real wire.
+* **The chat used port 250.** It is a low port that no common service uses. A capture full of 443 and 80 makes a port like that stand out on the Protocol Hierarchy.
+* **26 packets, not 25.** The `data` filter returned one more packet than the Protocol Hierarchy row, and the extra one was the upload. Chasing a mismatch of one found the evidence for Tasks 2 and 3.
+* **Entropy 7.993 of a possible 8.0.** A file that is almost perfectly random has no signature to match, and that is why `file` just says `data`.
+
+---
+
 ## What I learned
 
 * **Rank traffic by how readable it is.** Most of the capture was encrypted and could be skipped. The answers were in the small cleartext rows.
