@@ -39,7 +39,7 @@ sha256sum auth.log wtmp utmp.py
 | `wtmp` | `dddc32ea65ed9972b0ee9802f95b20d4b6b98c0d5b4930f6d2302f2740458576` |
 | `utmp.py` | `561f0d4e696f939d6f1ae72e7b072597811612fa1a63302ace3d17d5ca3004ce` |
 
-> Read evidence files in the terminal, and never open them in an office program. I opened `auth.log` in LibreOffice once during this case, and its save reflowed the log from 385 lines into 2 and added backslashes to every bracket. I restored it from the zip and checked the hash above.
+> Open evidence files in a plain text viewer or the terminal, and never in an office program. I started by opening `auth.log` just to see what was inside. The file is small, so a plain text editor such as Notepad shows it well. In LibreOffice, though, the save reflowed the log from 385 lines into 2 and added backslashes to every bracket. I restored it from the zip and checked the hash above.
 {: .prompt-warning }
 
 ---
@@ -160,7 +160,7 @@ I also read the raw value from the binary to check the parser. The record holds 
 
 **Answer:** `2024-03-06 06:32:45`
 
-> The parser prints the date with slashes (`2024/03/06`), and my first attempt in that format was rejected. I submitted it in ISO form, with dashes, as shown above.
+> The parser prints the date with slashes (`2024/03/06`), and my first attempt in that format was rejected. HTB accepted the ISO form with dashes, as shown above.
 {: .prompt-tip }
 
 ---
@@ -265,7 +265,7 @@ _Session 37 closes at 06:37:24_
 
 The session lasted from 06:32:44 to 06:37:24, which is 4 minutes and 40 seconds. The attacker closed it themselves (`disconnected by user`), and `wtmp` agrees with a `DEAD` record at the same second. Ten seconds later they logged back in as `cyberjunkie`, the account created in that window.
 
-The wording of the question is ambiguous. Session 34 was technically the attacker's first, and it ended at 06:31:40, the same second it opened. I read "first SSH session" as the terminal session that this case follows from Task 3 onward.
+The wording of the question is ambiguous. Session 34 was technically the attacker's first, and it ended at 06:31:40, the same second it opened. I read "first SSH session" as the terminal session that this case follows from Task 3 onward, and HTB accepted that reading.
 
 **Answer:** `2024-03-06 06:37:24`
 
