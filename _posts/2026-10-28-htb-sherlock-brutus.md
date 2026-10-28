@@ -3,6 +3,9 @@ title: "HTB Sherlock: Brutus"
 author: baraka
 date: 2026-10-28 15:30:00 +0300
 description: A Hack The Box Sherlock walkthrough. Eight questions about a brute-forced SSH server, answered from auth.log and wtmp by building one timeline of the attack, from the first guess to a downloaded script.
+image:
+  path: /assets/images/Eighteenth_blog/banner.png
+  alt: The Hack The Box Sherlock card for Brutus, rated Very Easy, with 195 XP.
 categories: [ Security, HTB Sherlocks ]
 tags: [ HTB, Sherlocks, Brutus, Linux Forensics, auth.log, wtmp, SSH, Brute Force, MITRE ATT&CK, DFIR ]
 ---
