@@ -33,8 +33,9 @@ The design documents, diagrams, notes and screenshots are in the repository: [hy
 | 8 | [Building the directory with a script](/posts/building-the-directory-with-a-script/) | Five OUs, six groups and 150 users from a CSV, with random passwords. |
 | 9 | [Audit policy by Group Policy](/posts/audit-policy-by-group-policy/) | Recording failed logons, and a policy that applied but wasn't read. |
 | 10 | [Hardening the domain](/posts/hardening-the-domain-password-lockout-and-legacy-protocols/) | Password and lockout policy, a tested lockout, and LLMNR, NetBIOS and SMBv1 turned off. |
+| 11 | [Turning on the Windows Firewall without breaking the domain](/posts/turning-on-the-windows-firewall-without-breaking-the-domain/) | Inbound blocked by default, the allow rules the domain needs, and the order that broke sign-in when reversed. |
 
-Post 7 ends with the list of problems still open across the series.
+Post 7 ends with the list of problems still open across the series. Post 11 lists the firewall rules still open (ping and NetBIOS).
 
 ---
 
@@ -67,7 +68,7 @@ Windows Server runs as an evaluation, and Windows 11 is installed without a prod
 | Phase | Goal | Status |
 |---|---|---|
 | 0 | Setup and network design | Done |
-| 1 | Build and harden Active Directory | In progress: domain, DHCP, client join, 150 users, audit policy, password and lockout policy, and name-resolution hardening done. Next: firewall policy. |
+| 1 | Build and harden Active Directory | Done, with open items: domain, DHCP, client join, 150 users, audit policy, password and lockout policy, name-resolution hardening, and the Windows Firewall policy. |
 | 2 | Attack and detect (Wazuh, Sigma) | Planned |
 | 3 | Digital forensics on the compromised domain controller | Planned |
 | 4 | Microsoft Sentinel and KQL | Planned |
