@@ -2,7 +2,7 @@
 title: "Hybrid Identity Detection Lab: Start Here"
 author: baraka
 date: 2026-10-26 01:00:00 +0300
-description: The goal, the posts in order, the lab's specs and where to download everything, so the series can be followed or rebuilt.
+description: Post index, lab specifications and software sources for the Hybrid Identity Detection Lab.
 image:
   path: /assets/images/Ninth_blog/network-design.png
   alt: Network diagram showing the attacker zone, the pfSense firewall fw01 and the Active Directory lab zone.
@@ -11,35 +11,33 @@ tags: [ Hybrid Identity Detection Lab, Active Directory, pfSense, VirtualBox ]
 pin: true
 ---
 
-## What this is
+## Overview
 
-A home lab where I build an Active Directory domain, harden it, attack it, detect the attacks, investigate the compromised domain controller, and then extend it into Microsoft Entra ID and Microsoft Sentinel. The posts are written as I go, mistakes included. Anything I could not explain is marked as unknown.
+A segmented Active Directory lab: a pfSense firewall, a Windows Server domain controller and a Windows 11 client. The lab is used to harden the domain, simulate attacks, detect them, investigate a compromised domain controller, and extend the domain to Microsoft Entra ID and Microsoft Sentinel.
 
-The design documents, diagrams, notes and screenshots are in the repository: [hybrid-identity-detection-lab](https://github.com/Mulandii/hybrid-identity-detection-lab).
+Configuration files, scripts and screenshots are in the [repository](https://github.com/Mulandii/hybrid-identity-detection-lab).
 
 ---
 
-## The posts, in order
+## Posts
 
-| # | Post | What it covers |
+| # | Post | Covers |
 |---|---|---|
-| 1 | [Designing a segmented lab](/posts/designing-a-segmented-active-directory-lab/) | Two network zones with a firewall between them, and the design mistake I caught. |
-| 2 | [Installing pfSense](/posts/installing-pfsense-as-the-lab-gateway/) | The firewall VM, its three interfaces, and a client reaching the internet through it. |
-| 3 | [Sending attack traffic through the firewall](/posts/sending-attack-traffic-through-the-firewall/) | One firewall rule, one host route, and the first logged packet. |
-| 4 | [Building the domain controller](/posts/building-the-domain-controller/) | Static address, AD DS, DNS, DHCP, and a network profile problem. |
-| 5 | [Joining a Windows 11 client](/posts/joining-a-windows-client-to-the-domain/) | DNS checks, the join, and the login screen. |
-| 6 | [Creating, breaking and fixing AD objects](/posts/creating-breaking-and-fixing-ad-objects/) | One user's whole life by hand, and what the AD Recycle Bin changes. |
-| 7 | [What a domain controller logs, and what it doesn't](/posts/what-a-domain-controller-logs-and-what-it-doesnt/) | Failed logons, the audit gap, no lockout, and the clock. |
-| 8 | [Building the directory with a script](/posts/building-the-directory-with-a-script/) | Five OUs, six groups and 150 users from a CSV, with random passwords. |
-| 9 | [Audit policy by Group Policy](/posts/audit-policy-by-group-policy/) | Recording failed logons, and a policy that applied but wasn't read. |
-| 10 | [Hardening the domain](/posts/hardening-the-domain-password-lockout-and-legacy-protocols/) | Password and lockout policy, a tested lockout, and LLMNR, NetBIOS and SMBv1 turned off. |
-| 11 | [Turning on the Windows Firewall without breaking the domain](/posts/turning-on-the-windows-firewall-without-breaking-the-domain/) | Inbound blocked by default, the allow rules the domain needs, and the order that broke sign-in when reversed. |
-
-Post 7 ends with the list of problems still open across the series. Post 11 lists the firewall rules still open (ping and NetBIOS).
+| 1 | [Designing a segmented lab](/posts/designing-a-segmented-active-directory-lab/) | Network zones and firewall placement. |
+| 2 | [Installing pfSense](/posts/installing-pfsense-as-the-lab-gateway/) | Firewall installation and interface assignment. |
+| 3 | [Sending attack traffic through the firewall](/posts/sending-attack-traffic-through-the-firewall/) | Firewall rule, host route and log verification. |
+| 4 | [Building the domain controller](/posts/building-the-domain-controller/) | Static address, AD DS, DNS and DHCP. |
+| 5 | [Joining a Windows 11 client](/posts/joining-a-windows-client-to-the-domain/) | Pre-join checks, domain join and sign-in. |
+| 6 | [Creating, breaking and fixing AD objects](/posts/creating-breaking-and-fixing-ad-objects/) | Object lifecycle and the AD Recycle Bin. |
+| 7 | [What a domain controller logs, and what it doesn't](/posts/what-a-domain-controller-logs-and-what-it-doesnt/) | Audit gaps, account lockout and time synchronisation. |
+| 8 | [Building the directory with a script](/posts/building-the-directory-with-a-script/) | OUs, groups and 150 users created from a CSV. |
+| 9 | [Audit policy by Group Policy](/posts/audit-policy-by-group-policy/) | Enabling failed-logon auditing. |
+| 10 | [Hardening the domain](/posts/hardening-the-domain-password-lockout-and-legacy-protocols/) | Password and lockout policy, and LLMNR, NetBIOS and SMBv1. |
+| 11 | [Turning on the Windows Firewall without breaking the domain](/posts/turning-on-the-windows-firewall-without-breaking-the-domain/) | Inbound block, allow rules and verification. |
 
 ---
 
-## The lab
+## Lab
 
 | VM | Role | OS | RAM | Address |
 |---|---|---|---|---|
@@ -48,28 +46,15 @@ Post 7 ends with the list of problems still open across the series. Post 11 list
 | `WS01` | Client (named `win11` until post 5) | Windows 11 Pro | 4 GB | `10.0.10.100` by DHCP |
 | Arch host | Attacker | Arch Linux, 16 GB RAM, VirtualBox 7.2 | | `10.0.66.2` on `vboxnet1` |
 
-* **Domain:** `lab.internal`, NetBIOS name `LAB`. I avoided `.local` because Microsoft and pfSense both advise against it.
-* **Networks:** the lab zone is a VirtualBox internal network (`adlab-net`, `10.0.10.0/24`). The attacker zone is a host-only network (`vboxnet1`, `10.0.66.0/24`). Only `fw01` touches both.
-* **Snapshots:** a snapshot before every risky step, so any state can be restored.
+* **Domain:** `lab.internal`, NetBIOS name `LAB`. The `.local` suffix is avoided because Microsoft and pfSense advise against it for Active Directory.
+* **Networks:** lab zone `adlab-net` (`10.0.10.0/24`, internal network) and attacker zone `vboxnet1` (`10.0.66.0/24`, host-only network). Only `fw01` connects to both.
+* **Snapshots:** taken before each risky change.
 
-### Where to get the software
+### Software
 
 * [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
-* [pfSense CE (Netgate installer)](https://www.pfsense.org/download/)
+* [pfSense CE](https://www.pfsense.org/download/)
 * [Windows Server 2022 evaluation](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2022)
 * [Windows 11 disk image](https://www.microsoft.com/software-download/windows11)
 
-Windows Server runs as an evaluation, and Windows 11 is installed without a product key. Windows 11 Home cannot join a domain, so use Pro.
-
----
-
-## The plan
-
-| Phase | Goal | Status |
-|---|---|---|
-| 0 | Setup and network design | Done |
-| 1 | Build and harden Active Directory | Done, with open items: domain, DHCP, client join, 150 users, audit policy, password and lockout policy, name-resolution hardening, and the Windows Firewall policy. |
-| 2 | Attack and detect (Wazuh, Sigma) | Planned |
-| 3 | Digital forensics on the compromised domain controller | Planned |
-| 4 | Microsoft Sentinel and KQL | Planned |
-| 5 | Entra ID hybrid identity | Planned |
+Windows Server runs as an evaluation. Use Windows 11 Pro, because Windows 11 Home cannot join a domain.

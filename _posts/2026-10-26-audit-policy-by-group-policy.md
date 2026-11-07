@@ -2,7 +2,7 @@
 title: "Audit Policy by Group Policy: When the Policy Applied but Wasn't Read"
 author: baraka
 date: 2026-10-26 04:25:00 +0300
-description: Making the domain controller record failed Kerberos logons with a Group Policy, and the policy that applied correctly but did nothing until I registered its audit extension by hand.
+description: Making the domain controller record failed Kerberos logons with a Group Policy, and registering the audit extension that a policy needs before its audit settings take effect.
 image:
   path: /assets/images/Sixteenth_blog/dc01-event-4771-after-audit-fix.png
   alt: PowerShell output of event 4771, Kerberos pre-authentication failed, for the account elijah.salim with failure code 0x18.
@@ -10,30 +10,35 @@ categories: [ Active Directory, Homelab, Group Policy ]
 tags: [ Group Policy, Audit Policy, Kerberos, Event Logs, Hybrid Identity Detection Lab ]
 ---
 
-## Overview
+## Objective
 
-This is the ninth post in my **Hybrid Identity Detection Lab** project. [Post 7](/posts/what-a-domain-controller-logs-and-what-it-doesnt/) found that the domain controller records Kerberos successes but not failures, so a detection for wrong passwords would see nothing. This post fixes that with a Group Policy, and covers why my first attempt applied cleanly and still did nothing.
-
-Hardening is only started. The list of what remains is at the end.
+Make the domain controller record failed Kerberos logons, so a detection for wrong passwords has an event to match.
 
 ---
 
-## The policy
+## Create the policy
 
-I created a policy object and linked it to the Domain Controllers OU:
+Create a policy object and link it to the Domain Controllers OU:
 
 ```powershell
 New-GPO -Name "LAB-DC-Audit"
 New-GPLink -Name "LAB-DC-Audit" -Target "OU=Domain Controllers,DC=lab,DC=internal"
 ```
 
-![Desktop View](/assets/images/Sixteenth_blog/dc01-gpo-audit-created-linked.png){: width="1460" height="876" }
-_The policy created and linked to the Domain Controllers OU_
+![The policy created and linked](/assets/images/Sixteenth_blog/dc01-gpo-audit-created-linked.png){: width="1460" height="876" }
+_`LAB-DC-Audit` linked to the Domain Controllers OU_
 
+The new link has order 2, behind the built-in `Default Domain Controllers Policy`. Move it to 1, so it wins any conflict:
 
-The link order was 2, behind the built-in `Default Domain Controllers Policy`. I moved it to 1 afterwards with `Set-GPLink ... -Order 1`, so my policy wins any conflict.
+```powershell
+Set-GPLink -Name "LAB-DC-Audit" -Target "OU=Domain Controllers,DC=lab,DC=internal" -Order 1
+```
 
-In the editor, under **Advanced Audit Policy Configuration**, I set these subcategories:
+---
+
+## Set the audit subcategories
+
+In the editor, under **Advanced Audit Policy Configuration**, set:
 
 | Category | Subcategory | Audit |
 |---|---|---|
@@ -48,67 +53,52 @@ In the editor, under **Advanced Audit Policy Configuration**, I set these subcat
 | Policy Change | Audit Policy Change | Success |
 | Privilege Use | Sensitive Privilege Use | Success and Failure |
 
-I first set `Non Sensitive Privilege Use` by mistake. It is very noisy and useless for detection, and I changed it. The old basic categories under Local Policies stay **Not Defined**.
+Do not set `Non Sensitive Privilege Use`. It is noisy and not useful for detection.
 
-I also enabled **"Audit: Force audit policy subcategory settings to override audit policy category settings"** under Security Options. It makes Windows use the subcategories and ignore the old category-level settings.
-
-![Desktop View](/assets/images/Sixteenth_blog/dc01-gpo-audit-policies-editing.png){: width="1513" height="920" }
+![Setting a subcategory](/assets/images/Sixteenth_blog/dc01-gpo-audit-policies-editing.png){: width="1513" height="920" }
 _Setting a subcategory in the policy editor_
 
+Then enable **Audit: Force audit policy subcategory settings to override audit policy category settings** under Security Options. It makes Windows use the subcategories and ignore the old category-level settings. Leave the basic categories under Local Policies at **Not Defined**.
 
-![Desktop View](/assets/images/Sixteenth_blog/dc01-gpo-force-subcategory-override.png){: width="1501" height="755" }
+![The override setting enabled](/assets/images/Sixteenth_blog/dc01-gpo-force-subcategory-override.png){: width="1501" height="755" }
 _The override setting enabled_
 
+Set all the Account Logon subcategories before you apply the policy. With the override on, a subcategory that isn't set reports `No Auditing`.
 
 ---
 
-## It got worse first
-
-After `gpupdate /force`, I checked the result:
+## Apply and check
 
 ```powershell
+gpupdate /force
 auditpol /get /subcategory:"Kerberos Authentication Service"
 ```
 
-![Desktop View](/assets/images/Sixteenth_blog/dc01-gpupdate-auditpol-no-auditing.png){: width="1244" height="245" }
-_After gpupdate: Kerberos Authentication Service says No Auditing_
-
-
-It said **No Auditing**, where before it had said `Success`. That was expected, because the override makes Windows ignore the old category settings that had been giving the `Success`, and I had not set the Account Logon subcategories yet. So I set them:
-
-![Desktop View](/assets/images/Sixteenth_blog/dc01-gpo-account-logon-audit.png){: width="1508" height="652" }
-_The three Account Logon subcategories set to Success and Failure_
-
-
-`auditpol /get /category:*` still said No Auditing for **every** subcategory, including the ones I had set.
+The result must be `Success and Failure`.
 
 ---
 
-## Finding the cause
+## When the policy applies but does nothing
 
-Three checks, all on DC01:
+If `auditpol` still says **No Auditing** for every subcategory, including the ones you set, the policy may have been received without its audit extension. Three checks show that the policy arrived:
 
-* `gpresult /scope computer /r` listed `LAB-DC-Audit` as applied.
-* The policy's `audit.csv` in SYSVOL held every row I had set, with the right values.
-* Its `GptTmpl.inf` held `SCENoApplyLegacyAuditPolicy=4,1`, the override setting.
+* `gpresult /scope computer /r` lists `LAB-DC-Audit`.
+* The policy's `audit.csv` in SYSVOL holds the rows you set.
+* Its `GptTmpl.inf` holds `SCENoApplyLegacyAuditPolicy=4,1`, the override setting.
 
-So the policy had applied, and the settings had been saved. The override had taken effect, and the audit rows had not. Then I looked at the policy's record in Active Directory:
+![auditpol still says No Auditing](/assets/images/Sixteenth_blog/dc01-gpupdate-auditpol-no-auditing.png){: width="1244" height="245" }
+_After `gpupdate`, the Kerberos Authentication Service subcategory says No Auditing_
+
+Then read the extension list in the policy's record in Active Directory. A computer runs only the extensions that the record lists:
 
 ```powershell
 Get-ADObject "CN={e87ea7d7-5820-41cd-b0fc-2e05de015470},CN=Policies,CN=System,DC=lab,DC=internal" -Properties gPCMachineExtensionNames | Format-List gPCMachineExtensionNames
 ```
 
-![Desktop View](/assets/images/Sixteenth_blog/dc01-gpo-extension-names-missing-audit.png){: width="1469" height="502" }
-_Only the security extension is listed; the audit extension is missing_
+![The record lists only the security extension](/assets/images/Sixteenth_blog/dc01-gpo-extension-names-missing-audit.png){: width="1469" height="502" }
+_Only the security settings extension is listed. The audit extension is missing._
 
-
-`gPCMachineExtensionNames` listed only one pair, the security settings extension. The audit extension was missing. As I understand it, a computer only runs the extensions a policy lists, so DC01 read the override setting and never read `audit.csv`.
-
----
-
-## The fix
-
-First I checked that the audit extension exists on DC01. The key `{F3CCC681-B74C-4060-9F26-CD84525DCA2A}` under `Winlogon\GPExtensions` is named `Audit Policy Configuration` and points to `auditcse.dll`. Then I appended it to the policy's record:
+The key `{F3CCC681-B74C-4060-9F26-CD84525DCA2A}` under `Winlogon\GPExtensions` on DC01 is named `Audit Policy Configuration` and points to `auditcse.dll`. Append the audit extension pair to the policy's list. Replace the GUID with your policy's:
 
 ```powershell
 $dn  = "CN={e87ea7d7-5820-41cd-b0fc-2e05de015470},CN=Policies,CN=System,DC=lab,DC=internal"
@@ -117,49 +107,33 @@ Set-ADObject $dn -Replace @{ gPCMachineExtensionNames = $cur + '[{F3CCC681-B74C-
 gpupdate /force
 ```
 
-![Desktop View](/assets/images/Sixteenth_blog/dc01-gpo-audit-extension-fixed.png){: width="1485" height="394" }
-_The extension registered, and auditpol shows Success and Failure_
+Append the pair once. Running the command again adds a duplicate entry.
 
-
-`auditpol` now said **Success and Failure**.
-
-Two things I don't know. A web search did not confirm the second GUID in the pair, which I took from memory, so I verified the extension GUID on DC01 and judged the rest by the result. And I don't know why the Group Policy editor did not register the extension itself, so any new policy with audit settings may need the same step. If this had not worked, I would have put the settings in the Default Domain Controllers Policy or run `auditpol` from a startup script.
+![The extension registered and Success and Failure](/assets/images/Sixteenth_blog/dc01-gpo-audit-extension-fixed.png){: width="1485" height="394" }
+_`auditpol` now says Success and Failure_
 
 ---
 
-## The proof
+## Verify
 
-I typed a wrong password for `elijah.salim` on WS01, then read the log on DC01:
+Enter a wrong password for a test account on WS01, then read the event on DC01:
 
 ```powershell
 Get-WinEvent -LogName Security -FilterXPath "*[System[EventID=4771]]" -MaxEvents 1 | Format-List Message
 ```
 
-![Desktop View](/assets/images/Sixteenth_blog/dc01-event-4771-after-audit-fix.png){: width="1494" height="713" }
-_Event 4771 for a wrong password, with failure code 0x18_
+![Event 4771 for a wrong password](/assets/images/Sixteenth_blog/dc01-event-4771-after-audit-fix.png){: width="1494" height="713" }
+_Event 4771: the account, `krbtgt/LAB`, WS01's address, and failure code `0x18`_
 
-
-Event **4771**, which did not exist before, now names the account, `krbtgt/LAB` as the service, WS01's address, and **Failure Code `0x18`**, which is a wrong password. A failed login is now recorded on the domain controller with the account, the source machine and the reason.
+Event **4771** names the account, the service `krbtgt/LAB`, the source machine and **Failure Code `0x18`**, which is a wrong password. A failed login is now recorded on the domain controller with the account, the source and the reason.
 
 ---
 
-## Outcome
+## Notes
 
-* The domain controller records failed and successful Kerberos logons, logons, account changes and group changes.
-* The cause of a policy that applied and did nothing, found by comparing what the machine had with what the policy listed.
+* **Check `auditpol` after the first subcategory.** Checking after a whole list of settings hides which one failed.
+* **Check the extension list when a policy applies and does nothing.** `gpresult` showing a policy as applied does not mean every setting in it was read.
 
-## Still to do
+---
 
-* Check that the audit policy and the network profile survive a reboot of DC01.
-* Password and account lockout policy.
-* Turn off SMBv1, LLMNR and NetBIOS name resolution.
-* The Windows Firewall policy for DC01, on all profiles.
-* A clean hardened baseline snapshot.
-
-## What I would do differently
-
-I only ran `auditpol` after setting a whole list of subcategories. Checking after the first one would have shown the extension problem sooner.
-
-## Next
-
-The password and lockout policy, then the name-resolution settings.
+Next: [Hardening the Domain: Password Policy, Lockout and Legacy Protocols](/posts/hardening-the-domain-password-lockout-and-legacy-protocols/)

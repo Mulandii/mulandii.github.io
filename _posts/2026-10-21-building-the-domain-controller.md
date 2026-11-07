@@ -2,100 +2,89 @@
 title: Building the Domain Controller with AD DS, DNS and DHCP
 author: baraka
 date: 2026-10-21 11:00:00 +0300
-description: Giving a Windows Server a fixed address, creating the lab.internal domain, setting up DHCP, and the network profile problem that showed up after the first reboot.
+description: Setting the time, giving a Windows Server a fixed address, creating the lab.internal domain, configuring DHCP, and verifying the first client lease.
 image:
   path: /assets/images/Thirteenth_blog/dc01-domain-login.png
   alt: The DC01 login screen showing LAB\Administrator.
 categories: [ Active Directory, Homelab, Windows Server ]
-tags: [ Active Directory, AD DS, DNS, DHCP, PowerShell, Windows Server 2022, Hybrid Identity Detection Lab ]
+tags: [ Active Directory, AD DS, DNS, DHCP, PowerShell, Windows Server 2022, Time Synchronisation, Hybrid Identity Detection Lab ]
 ---
 
-## Overview
+## Objective
 
-This is the fourth post in my **Hybrid Identity Detection Lab** project. The firewall and the attacker path are in place from the earlier posts. This post builds the heart of the lab: a Windows Server domain controller for the domain `lab.internal`, with DNS and DHCP, and a first client lease.
-
-I did this in a fixed order, taking a snapshot before each risky step so I could go back:
-
-1. A fixed address on `DC01`
-2. The AD DS role, then the new forest
-3. Health checks
-4. DHCP
-5. A lease for the Windows 11 client
-
----
+Build the `lab.internal` domain on a Windows Server domain controller with DNS and DHCP, and confirm that the Windows 11 client receives its lease from it.
 
 ## Environment
 
 * **DC01:** Windows Server 2022 evaluation, 3 GB RAM, 2 CPUs, on the internal network `adlab-net`
-* **win11:** Windows 11 Pro, on the same network. The edition matters: Windows 11 Home cannot join a domain.
+* **win11:** Windows 11 Pro on the same network. Windows 11 Home cannot join a domain.
 * **fw01:** pfSense, the gateway at `10.0.10.1`
-* Snapshots: `phase1-dc01-fresh-install`, `phase1-dc01-before-ad`, `phase1-dc01-ad-installed`
 
-With all three VMs running, my 16 GB host reached about 92% memory use, so I reduced DC01 to 3 GB and the firewall to about 1.2 GB.
+With all three VMs running, a 16 GB host reaches about 92% memory use. DC01 runs at 3 GB and `fw01` at about 1.2 GB.
 
-> Set the domain controller's clock correctly from the start. Kerberos rejects logins when two clocks differ by more than five minutes, and every domain member takes its time from the DC. I had to fix a wrong clock later (see [post 7](/posts/what-a-domain-controller-logs-and-what-it-doesnt/)).
-{: .prompt-warning }
+Take a snapshot before each risky step: `phase1-dc01-fresh-install`, `phase1-dc01-before-ad` and `phase1-dc01-ad-installed`.
 
 ---
 
-## Step 1: A fixed address
+## Set the time
 
-A domain controller needs an address that never changes, because every other machine will be told where to find it. I gave it `10.0.10.10/24` with the pfSense gateway, and pointed DNS at pfSense for now, because DC01's own DNS does not exist until the domain is created. I also renamed the server to `DC01` and restarted it before creating the domain, because renaming a domain controller afterwards is painful. The first `ipconfig` still showed the old random name until the restart.
+Kerberos rejects logins when two clocks differ by more than five minutes, and every domain member takes its time from the domain controller. Set the time zone and the time source before you promote DC01:
 
-The PowerShell equivalent of the address settings is:
+```powershell
+Set-TimeZone -Id "E. Africa Standard Time"
+w32tm /config /manualpeerlist:"time.cloudflare.com,0x8 pool.ntp.org,0x8" /syncfromflags:manual /reliable:yes /update
+w32tm /query /status
+```
+
+The source must be an external server. On the clients, `w32tm /query /source` returns `DC01.lab.internal`.
+
+DC01 once showed the wrong date, time and time zone, and the Settings app locked the time controls. Setting both with commands worked.
+
+![Time source status on DC01](/assets/images/Fifteenth_blog/dc01-w32tm-source-status.png){: width="988" height="589" }
+_DC01 synchronises from `time.cloudflare.com`_
+
+---
+
+## Fixed address and name
+
+A domain controller needs an address that never changes, because every other machine is told where to find it. Use `10.0.10.10/24` with the pfSense gateway. Point DNS at pfSense for now, because DC01's own DNS does not exist until the domain is created. Rename the server to `DC01` and restart before you create the domain, because renaming a domain controller afterwards is difficult.
 
 ```powershell
 New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.0.10.10 -PrefixLength 24 -DefaultGateway 10.0.10.1
 Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.0.10.1
 ```
 
-![Desktop View](/assets/images/Thirteenth_blog/dc01-ipconfig.png){: width="1000" height="762" }
-_Host name DC01, fixed address, and a working ping and DNS lookup through pfSense_
+![Host name, fixed address, ping and DNS lookup](/assets/images/Thirteenth_blog/dc01-ipconfig.png){: width="1000" height="762" }
+_Host name DC01, the fixed address, and a working ping and DNS lookup through pfSense_
 
-### The "discoverable" prompt
-
-When I applied the network settings, Windows asked whether to let this PC be discoverable on the network. I answered **No**.
-
-The answer sets the network's firewall profile. Yes makes it Private, which allows network discovery and file sharing. No makes it Public, the stricter profile. I chose No because a domain controller has no use for discovery: it is found through DNS and Active Directory, not by browsing the network. Discovery also switches on name-lookup protocols that attackers abuse, such as LLMNR, NetBIOS and mDNS, and I plan to disable those with Group Policy in the hardening step. Opening them now would only mean closing them later.
-
-The profile is not permanent. Once the machine becomes a domain controller, Windows is supposed to reclassify the network as a domain network, and as the section on the network profile below shows, that did not always stick.
+When Windows asks whether to make the PC discoverable on the network, answer **No**. That sets the stricter Public profile. A domain controller is found through DNS and Active Directory, not through network discovery.
 
 ---
 
-## Step 2: Installing AD DS and creating the domain
-
-First the role, then the forest:
+## Install AD DS and create the domain
 
 ```powershell
 Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
 Install-ADDSForest -DomainName "lab.internal" -DomainNetbiosName "LAB" -InstallDns
 ```
 
-![Desktop View](/assets/images/Thirteenth_blog/dc01-adds-role-installed.png){: width="904" height="366" }
-_The role installed with no restart needed_
-
 | Part | Meaning |
 |---|---|
-| `Install-ADDSForest` | Creates a new forest, which is the top-level container of an AD environment, with its first domain and first domain controller. |
-| `-DomainName "lab.internal"` | The name I chose. It is hard to change later, so I decided it before this step. |
-| `-DomainNetbiosName "LAB"` | The short name used in logins such as `LAB\Administrator`. |
+| `Install-ADDSForest` | Creates a new forest, the top-level container of an AD environment, with its first domain and domain controller. |
+| `-DomainName "lab.internal"` | The domain name. It is difficult to change later. |
+| `-DomainNetbiosName "LAB"` | The short name used in logins, such as `LAB\Administrator`. |
 | `-InstallDns` | Installs DNS on the server. Active Directory finds everything through DNS. |
 
-The command asks for a Directory Services Restore Mode password, an emergency recovery login. Keep it somewhere safe, because you cannot recover the domain controller's directory without it.
-
-![Desktop View](/assets/images/Thirteenth_blog/dc01-forest-created.png){: width="974" height="147" }
-_The confirmation prompt before the domain controller is created and the server restarts_
+The command asks for a Directory Services Restore Mode password, an emergency recovery login. Store it safely, because the directory cannot be recovered without it.
 
 After the restart, the login screen offers `LAB\Administrator`.
 
-![Desktop View](/assets/images/Thirteenth_blog/dc01-domain-login.png){: width="1032" height="752" }
+![Domain login screen](/assets/images/Thirteenth_blog/dc01-domain-login.png){: width="1032" height="752" }
 _The domain login screen_
 
 ---
 
-## Step 3: Checking the domain
-
-I ran the standard health check and a few direct tests:
+## Check the domain
 
 ```powershell
 dcdiag /q
@@ -104,59 +93,33 @@ net share
 Get-DnsServerForwarder
 ```
 
-* `nslookup lab.internal` returned `10.0.10.10`, so DC01's own DNS answers for the domain.
-* `net share` listed **NETLOGON** and **SYSVOL**, the shares that clients use to get logon scripts and Group Policy.
-* DC01's DNS forwarder was already set to `10.0.10.1`, so names outside the domain resolve through pfSense.
+* `nslookup lab.internal` returns `10.0.10.10`, so DC01's DNS answers for the domain.
+* `net share` lists `NETLOGON` and `SYSVOL`. Clients use them for logon scripts and Group Policy.
+* The DNS forwarder is `10.0.10.1`, so names outside the domain resolve through pfSense.
+* `dcdiag /q` prints only failures. On this lab's DC01 it reported one failed test, `DFSREvent`. It is covered under the open items in the [last post](/posts/turning-on-the-windows-firewall-without-breaking-the-domain/) of the series.
 
-![Desktop View](/assets/images/Thirteenth_blog/dc01-net-share-and-profile.png){: width="1000" height="728" }
-_SYSVOL and NETLOGON shared, and the network profile result discussed below_
+![SYSVOL and NETLOGON shared](/assets/images/Thirteenth_blog/dc01-net-share-and-profile.png){: width="1000" height="728" }
+_`SYSVOL` and `NETLOGON` are shared_
 
-`dcdiag /q` printed only failures, and one test failed: **DFSREvent**. It reports warning or error events in the last 24 hours after SYSVOL was shared, and says SYSVOL replication problems may cause Group Policy problems.
+### Network profile
 
-![Desktop View](/assets/images/Thirteenth_blog/dc01-dcdiag-dfsr-warning.png){: width="985" height="737" }
-_The one failed test on a freshly promoted domain controller_
-
-I did not look into the DFS Replication event log, so I treat this as an unresolved but low-risk warning. This is the only domain controller, so nothing is replicating anywhere. SYSVOL and NETLOGON are shared, which indicates SYSVOL is working. The test looks back 24 hours, so it may keep failing until the first-boot events age out. Reading that event log is on my list.
-
----
-
-## The network profile problem
-
-After the domain was created, `Get-NetConnectionProfile` showed the network as **Public** with `LocalNetwork` connectivity, even though DC01 reached the internet.
-
-```powershell
-Test-NetConnection 8.8.8.8     # PingSucceeded : True
-```
-
-My understanding of the cause: Network Location Awareness classifies the network early in boot, before Active Directory and DNS have started. DC01 is its own domain controller, so at that moment it cannot find a domain and settles on Public.
-
-I tried to restart the service and it failed, because a dependent service would not stop:
-
-![Desktop View](/assets/images/Thirteenth_blog/dc01-nlasvc-restart-error.png){: width="975" height="310" }
-_Restart-Service NlaSvc refused to run_
-
-Restarting the network adapter worked instead, and the profile became `DomainAuthenticated`:
+After promotion, `Get-NetConnectionProfile` can report the network as **Public**. Restart the network adapter so the profile refreshes to **DomainAuthenticated**:
 
 ```powershell
 Restart-NetAdapter -Name "Ethernet"
 Get-NetConnectionProfile
 ```
 
-![Desktop View](/assets/images/Thirteenth_blog/dc01-network-profile.png){: width="975" height="230" }
-_Network named lab.internal and categorised as DomainAuthenticated_
+Check the profile after each restart. Group Policy firewall rules apply per profile, so the profile decides which rules are active.
 
-After a full restart of the VM, the profile was **Public** again.
-
-![Desktop View](/assets/images/Thirteenth_blog/dc01-network-profile-public-after-reboot.png){: width="1235" height="855" }
-_Public again after a reboot, while the ping still succeeds_
-
-I did not solve this yet, and I decided to defer it. It does not stop AD, DNS or DHCP from working. It matters for later: Windows Firewall rules from Group Policy apply per profile, so rules meant for the Domain profile would not apply to DC01 while it is on Public. I recorded it as an open item to resolve before the firewall hardening step.
+![Network named lab.internal, DomainAuthenticated](/assets/images/Thirteenth_blog/dc01-network-profile.png){: width="975" height="230" }
+_The network is named `lab.internal` and categorised as DomainAuthenticated_
 
 ---
 
-## Step 4: DHCP
+## DHCP
 
-pfSense's DHCP server is off by design, so the domain controller hands out addresses:
+pfSense's DHCP server is off, so the domain controller hands out addresses:
 
 ```powershell
 Install-WindowsFeature DHCP -IncludeManagementTools
@@ -168,59 +131,44 @@ Get-DhcpServerv4Scope
 
 | Command | Purpose |
 |---|---|
-| `Add-DhcpServerInDC` | Authorises the server in Active Directory. An unauthorised DHCP server on a domain does not hand out addresses, which protects against rogue DHCP servers. |
-| `Add-DhcpServerv4Scope` | The pool `10.0.10.100` to `.200`. The fixed addresses sit outside it. |
+| `Add-DhcpServerInDC` | Authorises the server in Active Directory. An unauthorised DHCP server does not issue leases on a domain, which protects against rogue servers. |
+| `Add-DhcpServerv4Scope` | The pool `10.0.10.100` to `10.0.10.200`. The fixed addresses sit outside it. |
 | `Set-DhcpServerv4OptionValue` | What each client receives: gateway `10.0.10.1`, DNS `10.0.10.10`, domain `lab.internal`. |
 
-![Desktop View](/assets/images/Thirteenth_blog/dc01-dhcp-scope.png){: width="1037" height="134" }
-_The scope is active with an 8-day lease_
+![The scope is active with an 8-day lease](/assets/images/Thirteenth_blog/dc01-dhcp-scope.png){: width="1037" height="134" }
+_The scope is active_
 
 ---
 
-## Step 5: The first lease
+## First lease
 
-I switched the Windows 11 client from its fixed address back to automatic and checked the result.
+Switch the Windows 11 client from its fixed address to automatic, then read the result:
 
-![Desktop View](/assets/images/Thirteenth_blog/win11-dhcp-lease.png){: width="1303" height="846" }
-_The client's lease from DC01_
+![The client's lease from DC01](/assets/images/Thirteenth_blog/win11-dhcp-lease.png){: width="1303" height="846" }
+_The lease from DC01_
 
-* The address is `10.0.10.100` and `PrefixOrigin` says `Dhcp`.
-* The **DHCP Server** line shows `10.0.10.10`, so DC01 issued the lease, not pfSense.
-* The gateway is `10.0.10.1` and the lease runs for 8 days.
+* The address is `10.0.10.100`, and `PrefixOrigin` says `Dhcp`.
+* The DHCP server is `10.0.10.10`, so DC01 issued the lease, not pfSense.
+* The gateway is `10.0.10.1`, and the lease runs for 8 days.
 
-**One problem:** the DNS server in this output is `10.0.10.1`, which is pfSense, and not `10.0.10.10`, which is DC01. The client needs DC01 as its DNS server to join the domain. The most likely explanation is that the fixed DNS setting from the earlier static configuration was left in place, so DHCP's DNS option was ignored.
-
-### The fix
-
-I reset the DNS setting to automatic and checked again:
+Check the DNS server line. It must be `10.0.10.10`, DC01, or the client cannot find the domain. A DNS value left over from the static configuration overrides the one from DHCP. Reset it:
 
 ```powershell
 Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ResetServerAddresses
 ipconfig /all
 ```
 
-![Desktop View](/assets/images/Thirteenth_blog/win11-dns-fixed.png){: width="1318" height="524" }
+![DNS server reset to DC01](/assets/images/Thirteenth_blog/win11-dns-fixed.png){: width="1318" height="524" }
 _After the reset, the client's DNS server is DC01_
-
-The DNS server line now shows `10.0.10.10`, and the lease still comes from DC01. I have not yet tested name resolution for `lab.internal` from the client. That is the first thing to check before joining the domain.
 
 ---
 
-## Outcome
+## Notes
 
-* The domain `lab.internal` exists, with DNS answering for it and SYSVOL and NETLOGON shared
-* DHCP is authorised and active, and the Windows 11 client received a lease from DC01 with DC01 as its DNS server
-* Three snapshots mark the clean states along the way
+* **Set the time zone and time source before promotion.** Every domain member takes its time from the domain controller.
+* **Rename the server before you create the domain.**
+* **Read the DNS line right after the client switches to automatic addressing.** A leftover static DNS value is visible in the first `ipconfig /all`.
 
-## Open items
+---
 
-* **DFSREvent warning** from `dcdiag`: read the DFS Replication log to confirm it is only first-boot noise
-* **Public network profile** on DC01 after a reboot: resolve before the firewall hardening step
-
-## What I would do differently
-
-I would have read the `win11` DNS line right after changing it to automatic and not after the lease. The wrong DNS value was visible in the very first output.
-
-## Next
-
-Testing name resolution for `lab.internal` from the Windows 11 client, joining it to the domain, and creating the organisational units and 150 users with a PowerShell script.
+Next: [Joining a Windows 11 Client to the Domain](/posts/joining-a-windows-client-to-the-domain/)
