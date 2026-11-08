@@ -74,7 +74,7 @@ ls
 cat os-release
 ```
 
-![Desktop View](/assets/images/Twenty-first_blog/task1-os-release.png)
+![Desktop View](/assets/images/SSHole_blog/task1-os-release.png)
 _`os-release` names the distribution and its version_
 
 ```
@@ -96,7 +96,7 @@ PRETTY_NAME="Alpine Linux v3.24"
 
 With an exact operating system version, the quickest way to a vulnerability is to search for it.
 
-![Desktop View](/assets/images/Twenty-first_blog/task2-cve-search.png)
+![Desktop View](/assets/images/SSHole_blog/task2-cve-search.png)
 _Searching for the OS version surfaces the CVE_
 
 The search points to **CVE-2026-123158**, nicknamed **sshole**, an authentication bypass in OpenSSH on Alpine Linux. I did not stop at the search summary. I read the vendor write-ups, [StepSecurity](https://www.stepsecurity.io/blog/cve-2026-123158-sshhole-openssh-musl-password-bypass) and [Cycode](https://cycode.com/blog/sshole-cve-2026-123158-openssh-alpine-linux-vulnerability/), and the mechanism has three parts that combine:
@@ -121,7 +121,7 @@ SSH events on Alpine are in `var/log/messages`. I filtered for the two words `ss
 grep -nE 'Accepted|Failed' var/log/messages
 ```
 
-![Desktop View](/assets/images/Twenty-first_blog/task3-adminsvc-login.png)
+![Desktop View](/assets/images/SSHole_blog/task3-adminsvc-login.png)
 _Every SSH login in the log_
 
 `-n` adds the line number, `-E` allows `Accepted|Failed` to mean "either word", and the log shrinks from 90 lines to 11. Two accounts appear:
@@ -164,7 +164,7 @@ ls -la
 cat .ash_history
 ```
 
-![Desktop View](/assets/images/Twenty-first_blog/task4-adminsvc-history.png)
+![Desktop View](/assets/images/SSHole_blog/task4-adminsvc-history.png)
 _`adminsvc` is the only user under `/home`, and its shell history shows the attack_
 
 The `-a` flag matters because `.ash_history` is a hidden file that plain `ls` skips. The history is Alpine's `ash` shell recording what the account typed, and it reads as five steps:
@@ -210,7 +210,7 @@ This also explains why the attacker abused this account. A service account with 
 
 The command is in the same history file. I copied it from the file and did not retype it, because HTB compares it character by character:
 
-![Desktop View](/assets/images/Twenty-first_blog/task6-scan-command.png)
+![Desktop View](/assets/images/SSHole_blog/task6-scan-command.png)
 _The scan, second line of the history_
 
 ```bash
@@ -244,7 +244,7 @@ Two hosts answered, which tells the attacker what lives behind the jumpbox. Port
 
 The last lines of the history are the second half of the attack:
 
-![Desktop View](/assets/images/Twenty-first_blog/task7-exfil-uri.png)
+![Desktop View](/assets/images/SSHole_blog/task7-exfil-uri.png)
 _The upload command, with its destination circled_
 
 ```bash
