@@ -114,18 +114,17 @@ The bypass is two asterisks meeting:
 * If the password sent is longer than 256 bytes, Alpine's `crypt()` fails, and the value it returns on failure is also `*`.
 * sshd compares what `crypt()` returned with the shadow entry. Both are `*`, so it counts as a match and authenticates the login.
 
-We check the shadow half on this server, printing only the start of each field:
+We check the shadow half on this server. The password is the second field of each line:
 
 ```bash
-awk -F: '$1=="root"||$1=="adminsvc"{h=$2; if(length(h)>4) h=substr(h,1,4)"..."; print $1": "h}' etc/shadow
+grep adminsvc etc/shadow
 ```
 
 ```
-root: $6$f...
-adminsvc: *
+adminsvc:*:20763:0:99999:7:::
 ```
 
-`root` has a real hash, so a failed `crypt()` could not match it. `adminsvc` is stored as exactly `*`, so it could. The log does not record the password that was sent, so the bypass is inferred from this setup and the login pattern, not seen directly.
+The password field of `adminsvc` is exactly `*`, so the account has no password and a failed `crypt()` could match it. `root`, by contrast, has a real hash starting with `$6$`, which a failed `crypt()` could not match. The log does not record the password that was sent, so the bypass is inferred from this setup and the login pattern, not seen directly.
 
 **Answer:** `*`
 
