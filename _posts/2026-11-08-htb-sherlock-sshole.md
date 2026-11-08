@@ -108,7 +108,13 @@ The history shows a subnet scan, a script run from the internet, an upload, and 
 
 ### 5. What string value causes the authentication bypass?
 
-We check how the accounts are stored in `etc/shadow`, printing only the start of each field:
+The bypass is two asterisks meeting:
+
+* In `/etc/shadow`, an account with no usable password has `*` in its password field, so nothing should ever match it.
+* If the password sent is longer than 256 bytes, Alpine's `crypt()` fails, and the value it returns on failure is also `*`.
+* sshd compares what `crypt()` returned with the shadow entry. Both are `*`, so it counts as a match and authenticates the login.
+
+We check the shadow half on this server, printing only the start of each field:
 
 ```bash
 awk -F: '$1=="root"||$1=="adminsvc"{h=$2; if(length(h)>4) h=substr(h,1,4)"..."; print $1": "h}' etc/shadow
@@ -119,7 +125,7 @@ root: $6$f...
 adminsvc: *
 ```
 
-`root` has a real hash. `adminsvc` has exactly `*`, so the account has no password, which is the vulnerable condition. The log does not record the password that was sent, so the bypass is inferred and not seen directly.
+`root` has a real hash, so a failed `crypt()` could not match it. `adminsvc` is stored as exactly `*`, so it could. The log does not record the password that was sent, so the bypass is inferred from this setup and the login pattern, not seen directly.
 
 **Answer:** `*`
 
