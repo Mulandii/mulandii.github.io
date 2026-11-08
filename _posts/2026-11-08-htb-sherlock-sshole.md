@@ -3,6 +3,9 @@ title: "HTB Sherlock: SSHole"
 author: baraka
 date: 2026-11-08 12:30:00 +0300
 description: A Hack The Box Sherlock writeup. A jumpbox compromised through an OpenSSH authentication bypass on Alpine Linux.
+image:
+  path: /assets/images/SSHole_blog/banner.png
+  alt: The Hack The Box solve screen for SSHole, rank 159, 180 XP.
 categories: [ Security, HTB Sherlocks ]
 tags: [ HTB, Sherlocks, SSHole, Linux Forensics, Alpine Linux, OpenSSH, CVE-2026-123158, Authentication Bypass, Shell History, DFIR ]
 ---
