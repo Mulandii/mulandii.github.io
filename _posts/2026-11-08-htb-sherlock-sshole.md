@@ -117,14 +117,19 @@ The bypass is two asterisks meeting:
 We check the shadow half on this server. The password is the second field of each line:
 
 ```bash
-grep adminsvc etc/shadow
+cat etc/shadow
 ```
+
+![Desktop View](/assets/images/SSHole_blog/task5-shadow-adminsvc.png)
+_`adminsvc` has `*` in its password field_
+
+The last line is the one that matters:
 
 ```
 adminsvc:*:20763:0:99999:7:::
 ```
 
-The password field of `adminsvc` is exactly `*`, so the account has no password and a failed `crypt()` could match it. `root`, by contrast, has a real hash starting with `$6$`, which a failed `crypt()` could not match. The log does not record the password that was sent, so the bypass is inferred from this setup and the login pattern, not seen directly.
+The password field of `adminsvc` is exactly `*`, so the account has no password and a failed `crypt()` could match it. `root`, at the top, has a real hash starting with `$6$`, which a failed `crypt()` could not match. The log does not record the password that was sent, so the bypass is inferred from this setup and the login pattern, not seen directly.
 
 **Answer:** `*`
 
