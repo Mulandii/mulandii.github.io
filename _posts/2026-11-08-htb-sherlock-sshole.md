@@ -23,9 +23,10 @@ A jumpbox was compromised through a flaw in its SSH server, and the attacker use
 
 ## Skills Learnt
 
-* Finding the right log when there is no `auth.log`
-* Recognising a known CVE in SSH logs and the shadow file
-* Reading a shell history as evidence
+* Identifying CVE Exploitation pattern
+* Log Analysis
+* SSH Analysis
+* Unix Forensics
 
 ## Initial Analysis
 
