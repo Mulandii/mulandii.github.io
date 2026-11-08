@@ -4,7 +4,7 @@ author: baraka
 date: 2026-10-28 10:00:00 +0300
 description: A Hack The Box Sherlock walkthrough. Six questions about one packet capture, answered in Wireshark by narrowing 25,000 packets down to a plain-text chat and a single file upload.
 image:
-  path: /assets/images/Seventeenth_blog/banner.png
+  path: /assets/images/PCAP_Analysis_blog/banner.png
   alt: The Hack The Box Sherlock card for PCAP Analysis, rated Very Easy, with 165 XP.
 categories: [ Security, HTB Sherlocks ]
 tags: [ HTB, Sherlocks, Wireshark, tshark, Pcap Analysis, Network Forensics, HTTP, DFIR ]
@@ -57,7 +57,7 @@ Reading 25,000 packets one by one is not realistic, so I used four steps:
 
 **Statistics → Protocol Hierarchy** shows every protocol and how much of the capture it takes up.
 
-![Desktop View](/assets/images/Seventeenth_blog/protocol-hierarchy.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/protocol-hierarchy.png)
 _Protocol Hierarchy of the capture_
 
 | Protocol | Packets | Share of bytes | Readable? |
@@ -86,7 +86,7 @@ I started with the unidentified traffic. Filtering for it:
 data
 ```
 
-![Desktop View](/assets/images/Seventeenth_blog/data-filter-ports.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/data-filter-ports.png)
 _The 25 `data` packets, with the TCP ports added as columns_
 
 The filter shows 26 packets, one more than the Protocol Hierarchy listed under `Data`. 25 of them are TCP segments between the same two endpoints on port **250**. The 26th is frame 3513, the file upload from Task 2: its file part has an unknown content type (`=----=`), so Wireshark labels those bytes `data` too. Port 250 is the part to follow now, and the upload comes back in Task 2.
@@ -102,7 +102,7 @@ P13: That sounds interesting! Can I check it out?
 Cu713: Well, I actually hid the script somewhere. It's like a little treasure hunt. ...
 ```
 
-![Desktop View](/assets/images/Seventeenth_blog/chat-follow-stream.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/chat-follow-stream.png)
 _Follow TCP Stream on port 250_
 
 The footer of the window agrees with the Protocol Hierarchy: 13 client packets and 12 server packets make the 25 `data` packets, and the conversation totals 1,128 bytes, the same figure as the `Data` row. The dropdown at the bottom splits the bytes by direction:
@@ -152,7 +152,7 @@ http.request.method == "POST" && !ocsp
 
 I added `!ocsp` because most POSTs in this capture are certificate checks that the browser makes in the background. One request remains:
 
-![Desktop View](/assets/images/Seventeenth_blog/post-request.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/post-request.png)
 _The only non-OCSP POST in the capture_
 
 ```bash
@@ -176,7 +176,7 @@ The request uses a bare IP address as its `Host`, and `192.168.1.7` appears in n
 
 I selected the request and expanded **MIME Multipart Media Encapsulation** in the Packet Details pane:
 
-![Desktop View](/assets/images/Seventeenth_blog/multipart-filename.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/multipart-filename.png)
 _The multipart section of the request_
 
 ```
@@ -207,7 +207,7 @@ An entropy that close to 8 means the bytes look random, which is what compressed
 
 The server describes itself in the response headers. I filtered for the reply with `http.response && ip.src == 192.168.1.7`, which leaves one packet (frame 3518), and expanded **Hypertext Transfer Protocol**:
 
-![Desktop View](/assets/images/Seventeenth_blog/response-server-header.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/response-server-header.png)
 _The server's 200 OK response, frame 3518, with the `Server` header selected_
 
 ```
@@ -229,7 +229,7 @@ The web server is **Apache 2.4.54**, built for 64-bit Windows, running PHP 8.0.2
 
 The body of the same response says where the file went. It is in **Line-based text data** at the bottom of the details pane:
 
-![Desktop View](/assets/images/Seventeenth_blog/response-body-directory.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/response-body-directory.png)
 _The body of the response_
 
 ```
@@ -297,7 +297,7 @@ $ ./sherlock --verify PCAP_Analysis
 [+] exit code 0, +165 XP
 ```
 
-![Desktop View](/assets/images/Seventeenth_blog/solved.png)
+![Desktop View](/assets/images/PCAP_Analysis_blog/solved.png)
 _PCAP Analysis solved on 28 Oct 2026, Sherlock rank #1993_
 
 A few nerdy numbers from the case:

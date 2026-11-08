@@ -4,7 +4,7 @@ author: baraka
 date: 2026-10-28 15:30:00 +0300
 description: A Hack The Box Sherlock walkthrough. Eight questions about a brute-forced SSH server, answered from auth.log and wtmp by building one timeline of the attack, from the first guess to a downloaded script.
 image:
-  path: /assets/images/Eighteenth_blog/banner.png
+  path: /assets/images/Brutus_blog/banner.png
   alt: The Hack The Box Sherlock card for Brutus, rated Very Easy, with 195 XP.
 categories: [ Security, HTB Sherlocks ]
 tags: [ HTB, Sherlocks, Brutus, Linux Forensics, auth.log, wtmp, SSH, Brute Force, MITRE ATT&CK, DFIR ]
@@ -70,7 +70,7 @@ A brute force leaves many failed logins from one source. So I filtered for failu
 grep 'Failed password' auth.log | grep -oE 'from [0-9.]+' | sort | uniq -c
 ```
 
-![Desktop View](/assets/images/Eighteenth_blog/task1-failed-by-ip.png)
+![Desktop View](/assets/images/Brutus_blog/task1-failed-by-ip.png)
 _All 48 failed passwords come from a single address_
 
 `sort` goes before `uniq -c` because `uniq` only collapses lines that sit next to each other.
@@ -105,7 +105,7 @@ grep 'Accepted' auth.log
 grep 'Accepted' auth.log | grep 65.2.161.68
 ```
 
-![Desktop View](/assets/images/Eighteenth_blog/task2-accepted-logins.png)
+![Desktop View](/assets/images/Brutus_blog/task2-accepted-logins.png)
 _All successful logins, then only the ones from the attacker's address_
 
 | Time | User | Source address |
@@ -146,7 +146,7 @@ TZ=UTC python3 -I utmp.py wtmp
 
 (`-I` stops Python from importing code from the current directory, which holds files from a downloaded archive.)
 
-![Desktop View](/assets/images/Eighteenth_blog/task3-wtmp-login.png)
+![Desktop View](/assets/images/Brutus_blog/task3-wtmp-login.png)
 _The `wtmp` rows for the incident, with the manual root session circled_
 
 Only one root login from `65.2.161.68` appears in `wtmp`:
@@ -178,7 +178,7 @@ I also read the raw value from the binary to check the parser. The record holds 
 grep 'New session' auth.log
 ```
 
-![Desktop View](/assets/images/Eighteenth_blog/task4-new-session.png)
+![Desktop View](/assets/images/Brutus_blog/task4-new-session.png)
 _`systemd-logind` assigns session 37 to the 06:32:44 root login_
 
 | Time | User | Session |
@@ -205,7 +205,7 @@ grep -E 'useradd|usermod|groupadd' auth.log
 grep -E 'useradd' auth.log
 ```
 
-![Desktop View](/assets/images/Eighteenth_blog/task5-new-user.png)
+![Desktop View](/assets/images/Brutus_blog/task5-new-user.png)
 _Account creation and the `sudo` group change_
 
 ```
@@ -257,7 +257,7 @@ Sessions end with a `Removed session` line from `systemd-logind`, and the matchi
 grep -E 'Removed session|session closed for user root' auth.log
 ```
 
-![Desktop View](/assets/images/Eighteenth_blog/task7-session-end.png)
+![Desktop View](/assets/images/Brutus_blog/task7-session-end.png)
 _Session 37 closes at 06:37:24_
 
 ```
@@ -284,7 +284,7 @@ The wording of the question is ambiguous. Session 34 was technically the attacke
 grep 'COMMAND' auth.log
 ```
 
-![Desktop View](/assets/images/Eighteenth_blog/task8-sudo-commands.png)
+![Desktop View](/assets/images/Brutus_blog/task8-sudo-commands.png)
 _Both sudo commands run by `cyberjunkie`_
 
 ```
@@ -352,7 +352,7 @@ $ ./sherlock --verify Brutus
 [+] exit code 0, +195 XP
 ```
 
-![Desktop View](/assets/images/Eighteenth_blog/solved.png)
+![Desktop View](/assets/images/Brutus_blog/solved.png)
 _Brutus solved on 28 Oct 2026, Sherlock rank #41082_
 
 A few nerdy numbers from the case:
